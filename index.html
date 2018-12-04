@@ -1,0 +1,115 @@
+<!doctype html>
+<html>
+<head>
+  <title>Citizen REPL</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="keywords" content="key, words">
+  <meta name="description" content="Description.">
+  <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,">
+  <style>
+body {
+  margin: 0;
+  background: beige }
+#title {
+  font-family: sans;
+  margin: 1rem auto 0 3rem }
+#repl-print {
+  width: calc(100% - 3rem - 2px);
+  height: 15rem;
+  margin: 1rem;
+  resize: vertical;
+  padding: .5rem;
+  font-size: x-large;
+  border: 1px solid #bbb }
+#repl-read {
+  margin: 0 1rem;
+  width: calc(100% - 3rem - 2px);
+  padding: .3rem .5rem;
+  border: 1px solid #bbb;
+  font-family: monospace }
+  </style>
+</head>
+<body>
+  <h1 id='title'>Citizen Project smart contract REPL</h1>
+  <textarea id='repl-print' spellcheck='false' readonly></textarea>
+  <input id='repl-read' type='text'>
+  <script src='/js/utils.js'></script>
+
+  <script src='/js/vc-core/Lexer.js'></script>
+  <script src='/js/vc-core/Utilities.js'></script>
+  <script src='/js/vc-core/AbstractSyntaxTree.js'></script>
+  <script src='/js/vc-core/Printer.js'></script>
+  <script src='/js/vc-core/Parser.js'></script>
+  <script src='/js/vc-core/Interpreter.js'></script>
+
+  <!--script src='/js/test/test1.js'></script-->
+  <script>
+
+// Page state
+let app = new $.Machine(Object.seal({
+  lines: [],
+  state: new I.State(new AST.Context(), new AST.NameEnvironment()),
+  curIndex: 0,
+  curLine: ''
+}))
+
+.on('print', function (line, source) {
+  let len = this.lines.push({line, isHistory: Boolean(source)}),
+      prompt = source ? '> ' : '';
+  this.curIndex = this.lines.length;
+  this.curLine = '';
+  $('#repl-print')[0].value += (len === 1 ? '' : '\n') + prompt + line
+})
+
+.on('eval', function (line) {
+  return I.evaluate(line, this.state).then(result => {
+    result.forEach(l => { if (l) app.emit('print', l) })
+  });
+})
+
+.on('scroll', function (up) { // Clean this shit
+  if ((up && this.curIndex <= 0) || (!up && this.curIndex >= this.lines.length - 1)) return false;
+  let cur;
+  if (up) while (this.curIndex >= 0 && !(cur = this.lines[--this.curIndex]).isHistory);
+  else {
+    while (this.curIndex < this.lines.length - 1 && !(cur = this.lines[++this.curIndex]).isHistory);
+    if (this.curIndex === this.lines.length - 1 && !this.lines[this.curIndex].isHistory) while (!((cur = this.lines[--this.curIndex]).isHistory));
+  }
+  this.curLine = cur.line
+});
+
+
+
+// UI events
+$.addEvents({
+
+  '': {
+    load () {
+      $('#repl-print')[0].value = ''
+    }
+  },
+
+  '#repl-read': {
+    keypress (e) {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        app.emit('print', this.value, true);
+        app.emit('eval', this.value);
+        this.value = ''
+      } else if (e.key === 'ArrowUp') {
+        app.emit('scroll', true);
+        this.value = app.getState().curLine
+      } else if (e.key === 'ArrowDown') {
+        app.emit('scroll', false);
+        this.value = app.getState().curLine
+      }
+    }
+  }
+
+})
+
+  </script>
+  <noscript><h6>Only viewable with JavaScript enabled.</h6></noscript>
+</body>
+</html>
