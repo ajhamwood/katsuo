@@ -156,6 +156,7 @@ var L = (function () {
         nextline();
         if (sourceline === undefined) {
           make('(end)');
+          debug('Tokens:', tokens);
           return tokens
         }
         else {

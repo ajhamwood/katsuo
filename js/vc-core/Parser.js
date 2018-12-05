@@ -7,12 +7,13 @@ var P = (() => {
   let tokens, token_nr, token;
   let debug, ifDebug, nest_level;
 
-  function doDebug (msg) {
+  function doDebug (msg, res) {
     let n = token_nr, t = tokens[n];
     if (msg === 'End statement?') console.log(`%c${msg}`, 'font-weight: bold', t, n);
     else if (msg === 'Assign lhs?') console.log(`%c${msg}`, 'font-weight: bold; color: goldenrod', t, n);
     else if (msg === 'Declare') console.log(`%c${msg}`, 'font-weight: bold; color: purple', t, n);
     else if (msg === 'Evaluate') console.log(`%c${msg}`, 'font-weight: bold; color: forestgreen', t, n);
+    else if (msg === 'Expression:') console.log(msg, res);
     else console.log(msg, t, n)
   }
 
@@ -168,7 +169,7 @@ var P = (() => {
       return (ifDebug ? inner => debugGroup('Try Pi', inner) : alt)(() =>
         parseBindings(true, env).then(({boundvars, types}) => {
           advance('Pi arrow?', '(infix)', '==>');
-          return parseCTerm(0, boundvars).then(piBound => {
+          return parseCTerm(0, boundvars.concat(env)).then(piBound => {
             let type = types.shift();
             return types.reduce((a, x) => a = new AST.Pi(x, new AST.Inferred(a)), new AST.Pi(type, piBound))
           })
@@ -266,7 +267,9 @@ var P = (() => {
     token_nr = 0;
     tokens = t;
     nest_level = 0;
-    return parseStmt([], []).catch(() => { throw 'Parser error' })
+    return parseStmt([], [])
+      .then(res => { debug('Expression:', res); return res })
+      .catch((e) => { console.log(e); throw 'Parser error' })
   }
 
   return { parse, Eval, Assume }

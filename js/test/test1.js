@@ -5,7 +5,8 @@ if (parsing = true) {
   let teststring = `
   # Pi Lambda
 
-  test := (x, y, z => z) : (x, y : Type), (z : y) ==> y
+  test := (a : Type) ==> (b : Type ==> a)
+  # test := (x, y, z => z) : (x, y : Type), (z : y) ==> y
 
   # (Bool : Type) (true, false : Bool)
   # id1 := (x => x) : (a : Bool) ==> Bool
@@ -18,7 +19,7 @@ if (parsing = true) {
   console.log(`\`${teststring}\``)
   console.log('\nLexer:');
   console.log(lex = L.tokenise(teststring));
-  P.parse(lex).then(int => {
+  P.parse(lex, true).then(int => {
     console.log('\nParser:')
     console.log(int);
     console.log('\nPrinter:')
