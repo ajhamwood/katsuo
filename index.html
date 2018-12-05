@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
 <head>
-  <title>Citizen REPL</title>
+  <title>Katsuo REPL</title>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="keywords" content="key, words">
@@ -9,41 +9,60 @@
   <link rel="icon" type="image/x-icon" href="data:image/x-icon;base64,">
   <style>
 body {
-  margin: 0;
+  margin: 1rem;
   background: beige }
+#REPL {
+  display: flex;
+  flex-flow: column nowrap;
+  height: calc(100vh - 1rem)
+}
 #title {
   font-family: sans;
-  margin: 1rem auto 0 3rem }
+  margin: 1rem auto 0 1rem }
 #repl-print {
-  width: calc(100% - 3rem - 2px);
-  height: 15rem;
-  margin: 1rem;
-  resize: vertical;
+  width: calc(100% - 1rem - 2px);
+  margin: 0rem;
+  resize: none;
   padding: .5rem;
   font-size: x-large;
-  border: 1px solid #bbb }
+  border: 1px solid #bbb;
+  flex: 1 }
 #repl-read {
-  margin: 0 1rem;
-  width: calc(100% - 3rem - 2px);
+  margin: 1rem 0;
+  width: calc(100% - 1rem - 2px);
   padding: .3rem .5rem;
   border: 1px solid #bbb;
   font-family: monospace }
   </style>
 </head>
 <body>
-  <h1 id='title'>Citizen Project smart contract REPL</h1>
-  <textarea id='repl-print' spellcheck='false' readonly></textarea>
-  <input id='repl-read' type='text'>
-  <script src='/js/utils.js'></script>
+  <div id='REPL'>
+    <h1 id='title'>Katsuo</h1>
+    <p>A dependently typed smart contract language.</p>
+    <textarea id='repl-print' spellcheck='false' readonly></textarea>
+    <input id='repl-read' type='text'>
+  </div>
+  <div id='about'>
+    <p>Based on "A tutorial implementation
+of a dependently typed lambda calculus" (Loeh, McBride, Swierstra), available <a href='https://www.andres-loeh.de/LambdaPi/'>here</a>. Now developing: data constructors and pattern matching.</p>
+    <h2>Syntax overview</h2>
+    <p>Type annotations: <code>(Bool : Type) (true, false : Bool)</code></p>
+    <p>Assignment: <code>myTrue := true</code></p>
+    <p>Lambda functions: <code>id1 := (x => x) : Bool -> Bool</code></p>
+    <p>Function application: <code>id1 myTrue</code></p>
+    <p>Pi functions:</p>
+    <p><code>id2 := (t, x => x) : (t : Type) ==> t -> t</code><br />
+    <code>idB := id2 Bool</code><br />
+    <code>idB true</code></p>
+  </div>
+  <script src='js/utils.js'></script>
 
-  <script src='/js/vc-core/Lexer.js'></script>
-  <script src='/js/vc-core/Utilities.js'></script>
-  <script src='/js/vc-core/AbstractSyntaxTree.js'></script>
-  <script src='/js/vc-core/Printer.js'></script>
-  <script src='/js/vc-core/Parser.js'></script>
-  <script src='/js/vc-core/Interpreter.js'></script>
-
-  <!--script src='/js/test/test1.js'></script-->
+  <script src='js/vc-core/Lexer.js'></script>
+  <script src='js/vc-core/Utilities.js'></script>
+  <script src='js/vc-core/AbstractSyntaxTree.js'></script>
+  <script src='js/vc-core/Printer.js'></script>
+  <script src='js/vc-core/Parser.js'></script>
+  <script src='js/vc-core/Interpreter.js'></script>
   <script>
 
 // Page state
@@ -80,14 +99,11 @@ let app = new $.Machine(Object.seal({
 });
 
 
-
 // UI events
 $.addEvents({
 
   '': {
-    load () {
-      $('#repl-print')[0].value = ''
-    }
+    load () { $('#repl-print')[0].value = '' }
   },
 
   '#repl-read': {
