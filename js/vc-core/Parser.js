@@ -269,7 +269,7 @@ var P = (() => {
     nest_level = 0;
     return parseStmt([], [])
       .then(res => { debug('Expression:', res); return res })
-      .catch((e) => { console.log(e); throw 'Parser error' })
+      .catch(() => { throw 'Parser error' })
   }
 
   return { parse, Eval, Assume }

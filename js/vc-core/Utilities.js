@@ -14,8 +14,6 @@ var U = (function () {
     }
   }
 
-  class Unit {}
-
   class ValidatedArray {
     constructor (type) {
       if (type.constructor !== Function) throw new Error('Must construct using a Function');
@@ -78,43 +76,6 @@ var U = (function () {
     second () { return this.pair[1] }
   }
 
-  class ValidatedEither {
-    constructor (type1, type2) {
-      if (type1.constructor !== Function && type2.constructor !== Function) throw new Error('Must construct using Functions');
-      this.leftType = type1;
-      this.rightType = type2;
-      return this
-    }
-    left (value) {
-      if (this.leftType.isPrototypeOf(value.constructor) || this.leftType === value.constructor) return new this.Left(value);
-      else throw new Error('Bad type')
-    }
-    right (value) {
-      if (this.rightType.isPrototypeOf(value.constructor) || this.rightType === value.constructor) return new this.Right(value);
-      else throw new Error('Bad type')
-    }
-    get Left () {
-      let { leftType, rightType } = this;
-      return class Left extends this.constructor {
-        constructor (value) {
-          super(leftType, rightType);
-          this.value = value;
-          Object.defineProperty(this, 'Left', { get () { return this.constructor } })
-        }
-      }
-    }
-    get Right () {
-      let { leftType, rightType } = this;
-      return class Right extends this.constructor {
-        constructor (value) {
-          super(leftType, rightType);
-          this.value = value;
-          Object.defineProperty(this, 'Right', { get () { return this.constructor } })
-        }
-      }
-    }
-  }
-
 
   class ValidatedMaybe {
     constructor (type) {
@@ -155,11 +116,10 @@ var U = (function () {
   return {
     testCtor, testExtendedCtor, testInteger,
 
-    Eq, Unit,
+    Eq,
 
     ValidatedArray,
     ValidatedPair,
-    ValidatedEither,
     ValidatedMaybe
   }
 })();
