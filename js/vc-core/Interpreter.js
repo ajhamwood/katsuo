@@ -13,7 +13,7 @@ var I = (() => {
 
   function check (context, expr) {
     return TC.initialInferType(context, expr).then(type =>
-      ({type, value: TC.inferEvaluate(expr, new TC.Environment(), context)}))
+      ({type, value: TC.inferEvaluate(expr, context)}))
   }
 
   function evaluate (text, context, debug) {
@@ -41,7 +41,7 @@ var I = (() => {
 
         default: throw new Error('?')
       }
-    }, Promise.resolve([]))).catch(e => [e])
+    }, Promise.resolve([]))).catch(e => {console.log(e); return [e]})
   }
 
   return { evaluate }

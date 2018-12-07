@@ -20,12 +20,12 @@ var TC = (() => {
     } else throw new Error('?')
   }
 
-  function inferEvaluate (inferrableTerm, environment, context) {
-    if (U.testExtendedCtor(inferrableTerm, AST.InferrableTerm) && U.testCtor(environment, Environment) && U.testCtor(context, Context)) {
+  function inferEvaluate (inferrableTerm, context) {
+    if (U.testExtendedCtor(inferrableTerm, AST.InferrableTerm) && U.testCtor(context, Context)) {
       let value;
       switch (inferrableTerm.constructor) {
         case AST.Annotated:
-        value = checkEvaluate(inferrableTerm.checkableTerm1, environment, context)
+        value = checkEvaluate(inferrableTerm.checkableTerm1, context)
         break;
 
         case AST.Star:
@@ -34,13 +34,12 @@ var TC = (() => {
 
         case AST.Pi:
         value = new AST.VPi(
-          checkEvaluate(inferrableTerm.checkableTerm1, environment, context),
-          x => checkEvaluate(inferrableTerm.checkableTerm2, environment.cons(boundenv(x)), context))
+          checkEvaluate(inferrableTerm.checkableTerm1, context),
+          x => checkEvaluate(inferrableTerm.checkableTerm2, context.cons(boundenv(x), false)))
         break;
 
         case AST.Bound:
-        console.log('int', inferrableTerm.int)
-        value = environment.getValue(inferrableTerm.int).second().value
+        value = context.getValue(context.globals + inferrableTerm.int).second().value
         break;
 
         case AST.Free:
@@ -57,8 +56,8 @@ var TC = (() => {
 
         case AST.Apply:
         value = vapply(
-          inferEvaluate(inferrableTerm.inferrableTerm, environment, context),
-          checkEvaluate(inferrableTerm.checkableTerm, environment, context))
+          inferEvaluate(inferrableTerm.inferrableTerm, context),
+          checkEvaluate(inferrableTerm.checkableTerm, context))
         break;
 
         default: throw new Error('?')
@@ -87,16 +86,16 @@ var TC = (() => {
     } else throw new Error('?')
   }
 
-  function checkEvaluate (checkableTerm, environment, context) {
-    if (U.testExtendedCtor(checkableTerm, AST.CheckableTerm) && U.testCtor(environment, Environment) && U.testCtor(context, Context)) {
+  function checkEvaluate (checkableTerm, context) {
+    if (U.testExtendedCtor(checkableTerm, AST.CheckableTerm) && U.testCtor(context, Context)) {
       let value;
       switch (checkableTerm.constructor) {
         case AST.Inferred:
-        value = inferEvaluate(checkableTerm.inferrableTerm, environment, context)
+        value = inferEvaluate(checkableTerm.inferrableTerm, context)
         break;
 
         case AST.Lambda:
-        value = new AST.VLambda(x => checkEvaluate(checkableTerm.checkableTerm, environment.cons(boundenv(x)), context))
+        value = new AST.VLambda(x => checkEvaluate(checkableTerm.checkableTerm, context.cons(boundenv(x), false)))
         break;
 
         default: throw new Error('?')
@@ -117,7 +116,7 @@ var TC = (() => {
         case AST.Annotated:
         return checkType(int, context, inferrableTerm.checkableTerm2, new AST.VStar())
           .then(() => {
-            let type = checkEvaluate(inferrableTerm.checkableTerm2, new Environment(), context);
+            let type = checkEvaluate(inferrableTerm.checkableTerm2, context);
             return checkType(int, context, inferrableTerm.checkableTerm1, type)
               .then(() => new AST.Type(type))
           });
@@ -128,8 +127,8 @@ var TC = (() => {
         case AST.Pi:
         return checkType(int, context, inferrableTerm.checkableTerm1, new AST.VStar())
           .then(() => {
-            let type = checkEvaluate(inferrableTerm.checkableTerm1, new Environment(), context);
-            return checkType(int + 1, context.cons(new AST.Signature().setValue(new AST.Local(int), new AST.Type(type))),
+            let type = checkEvaluate(inferrableTerm.checkableTerm1, context);
+            return checkType(int + 1, context.cons(new AST.Signature().setValue(new AST.Local(int), new AST.Type(type)), true),
               checkSubstitution(0, new AST.Free(new AST.Local(int)), inferrableTerm.checkableTerm2), new AST.VStar())
               .then(() => new AST.Type(new AST.VStar()));
           })
@@ -153,7 +152,7 @@ var TC = (() => {
               case AST.VPi:
               let {value, func} = res.value;
               return checkType(int, context, inferrableTerm.checkableTerm, value)
-                .then(() => new AST.Type(func(checkEvaluate(inferrableTerm.checkableTerm, new Environment(), context))));
+                .then(() => new AST.Type(func(checkEvaluate(inferrableTerm.checkableTerm, context))));
 
               default:
               throw new Error('Illegal application')
@@ -178,7 +177,7 @@ var TC = (() => {
         });
 
         case AST.Lambda:
-        if (U.testCtor(type, AST.VPi)) return checkType(int + 1, context.cons(new AST.Signature().setValue(new AST.Local(int), new AST.Type(type.value))),
+        if (U.testCtor(type, AST.VPi)) return checkType(int + 1, context.cons(new AST.Signature().setValue(new AST.Local(int), new AST.Type(type.value)), true),
           checkSubstitution(0, new AST.Free(new AST.Local(int)), checkableTerm.checkableTerm), type.func(vfree(new AST.Local(int))));
         else throw new Error('Type mismatch')
 
@@ -209,7 +208,7 @@ var TC = (() => {
         break;
 
         case AST.Bound:
-        inferrableTerm = int == inferrableTerm2.int ? inferrableTerm1 : inferrableTerm2;
+        inferrableTerm = int === inferrableTerm2.int ? inferrableTerm1 : inferrableTerm2;
         break;
 
         case AST.Free:
@@ -317,36 +316,20 @@ var TC = (() => {
   }
 
 
-  class Context extends U.ValidatedArray { // TODO: globals Int
+  class Context extends U.ValidatedArray {
     constructor () {
       super(AST.Declaration);
       this.globals = 0;
-      let sv = this.setValue;
-      this.setValue = (value, i) => {
-        let rhs = value.second(), str = (U.testCtor(rhs, AST.Type) ? TC.initialQuote(rhs.value) : TC.initialQuote(rhs)).show();
-        console.log('@Context.setValue', `'${str}'`, i);
-        console.log('...length', this.length);
-        return sv.bind(this)(value, i)
+      let { cons } = this;
+      this.cons = (value, isGlobal) => {
+        let res = cons.bind(this)(value);
+        res.globals = this.globals + isGlobal;
+        return res
       }
     }
   }
 
-
-  class Environment extends U.ValidatedArray {
-    constructor () {
-      super(AST.Declaration);
-      let sv = this.setValue;
-      this.setValue = (value, i) => {
-        let rhs = value.second(), str = (U.testCtor(rhs, AST.Type) ? TC.initialQuote(rhs.value) : TC.initialQuote(rhs)).show();
-        console.log('@Environment.setValue', `'${str}'`, i);
-        console.log('...length', this.length);
-        return sv.bind(this)(value, i)
-      }
-    }
-  }
-
-
-  return { inferEvaluate, initialInferType, initialQuote, Context, Environment }
+  return { inferEvaluate, initialInferType, initialQuote, Context }
 })();
 
 
