@@ -14,9 +14,12 @@ var AST = (() => {
         Object.assign(this, { checkableTerm1, checkableTerm2 })
       } else throw new Error('?')
     }
+    show () { return `Ann(${this.checkableTerm1.show()}, ${this.checkableTerm2.show()})` }
   }
 
-  class Star extends InferrableTerm {}
+  class Star extends InferrableTerm {
+    show () { return 'Star' }
+  }
 
   class Pi extends InferrableTerm {
     constructor (checkableTerm1, checkableTerm2) {
@@ -25,6 +28,7 @@ var AST = (() => {
         Object.assign(this, { checkableTerm1, checkableTerm2 })
       } else throw new Error('?')
     }
+    show () { return `Pi(${this.checkableTerm1.show()}, ${this.checkableTerm2.show()})` }
   }
 
   class Bound extends InferrableTerm {
@@ -34,6 +38,7 @@ var AST = (() => {
         Object.assign(this, { int })
       } else throw new Error('?')
     }
+    show () { return `Bound ${this.int}` }
   }
 
   class Free extends InferrableTerm {
@@ -43,6 +48,7 @@ var AST = (() => {
         Object.assign(this, { name })
       } else throw new Error('?')
     }
+    show () { return `Free ${this.name.show()}` }
   }
 
   class Apply extends InferrableTerm {
@@ -52,6 +58,7 @@ var AST = (() => {
         Object.assign(this, { inferrableTerm, checkableTerm })
       } else throw new Error('?')
     }
+    show () { return `${this.inferrableTerm.show()} :@: ${this.checkableTerm.show()}` }
   }
 
 
@@ -68,6 +75,7 @@ var AST = (() => {
         Object.assign(this, { inferrableTerm })
       } else throw new Error('?')
     }
+    show () { return `Inf ${this.inferrableTerm.show()}` }
   }
 
   class Lambda extends CheckableTerm {
@@ -77,6 +85,7 @@ var AST = (() => {
         Object.assign(this, { checkableTerm })
       } else throw new Error('?')
     }
+    show () { return `Lam ${this.checkableTerm.show()}` }
   }
 
 
@@ -93,6 +102,7 @@ var AST = (() => {
         Object.assign(this, { string })
       } else throw new Error('?')
     }
+    show () { return `Global '${this.string}'` }
   }
 
   class Local extends Name {
@@ -102,6 +112,7 @@ var AST = (() => {
         Object.assign(this, { int })
       } else throw new Error('?')
     }
+    show () { return `Local ${this.int}` }
   }
 
   class Quote extends Name {
@@ -111,6 +122,7 @@ var AST = (() => {
         Object.assign(this, { int })
       } else throw new Error('?')
     }
+    show () { return `Quote ${this.int}` }
   }
 
 
@@ -167,12 +179,6 @@ var AST = (() => {
   }
 
 
-  class Environment extends U.ValidatedArray {
-    constructor () {
-      super(Value);
-    }
-  }
-
   class Type {
     constructor (value) {
       if (U.testExtendedCtor(value, Value)) {
@@ -181,29 +187,33 @@ var AST = (() => {
     }
   }
 
-  class NameTypePair extends U.ValidatedPair {
-    constructor () {
-      super(Name, Type)
+
+  class Declaration extends U.ValidatedPair {
+    constructor (rhs) {
+      super(Name, rhs)
     }
   }
 
-  class Context extends U.ValidatedArray {
+  class Signature extends Declaration {
     constructor () {
-      super(NameTypePair)
+      super(Type);
     }
   }
 
-  class NameValuePair extends U.ValidatedPair {
+  class Definition extends Declaration {
     constructor () {
-      super(Name, Value)
+      super(Value)
     }
   }
 
-  class NameEnvironment extends U.ValidatedArray {
+/*
+  class Constructor extends Declaration {
     constructor () {
-      super(NameValuePair)
+      super(null)
     }
   }
+  */
+
 
   return {
     InferrableTerm, Annotated, Star, Pi, Bound, Free, Apply,
@@ -214,11 +224,9 @@ var AST = (() => {
 
     Neutral, NFree, NApply,
 
-    Environment,
-
     Type,
-    NameTypePair, Context,
-    NameValuePair, NameEnvironment
+
+    Declaration, Signature, Definition /*, Constructor*/
   }
 })();
 

@@ -73,18 +73,25 @@ var P = (() => {
     })
   }
 
-  class Eval {
-    constructor (s, v) {
-      this.lhs = s;
-      this.rhs = v
+
+  class Hint extends U.ValidatedPair {
+    constructor (rhs) {
+      super(String, rhs)
     }
   }
 
-  class Assume {
-    constructor (s, v) {
-      this.string = s;
-      this.type = v
+  class SigHint extends Hint {
+    constructor () {
+      super(AST.CheckableTerm)
     }
+    show () { return `SigHint(${this.first().show()}, ${this.second().show()})` }
+  }
+
+  class DefHint extends Hint {
+    constructor () {
+      super(AST.InferrableTerm)
+    }
+    show () { return `DefHint(${this.first().show()}, ${this.second().show()})` }
   }
 
 
@@ -108,16 +115,16 @@ var P = (() => {
       let x = token.id;
       advance('Assign operator?', '(infix)', ':=');
       return parseITerm(0, env)
-        .then(y => endTest([new Eval(x, y)]))
+        .then(y => endTest([new P.DefHint().setValue(x, y)]))
     })).catch(() => alt(() => { // Declare statement
       debug('Declare');
       return parseBindings(false, [])
-        .then(({boundvars, types}) => boundvars.reduce((a, x, i) => (a.push(new Assume(x.id, types[i])), a), []).reverse())
+        .then(({boundvars, types}) => boundvars.reduce((a, x, i) => (a.push(new P.SigHint().setValue(x.id, types[i])), a), []).reverse())
         .then(endTest)
     })).catch(() => { // Evaluate statement
       debug('Evaluate');
       return parseITerm(0, env)
-        .then(v => endTest([new Eval('it', v)]))
+        .then(v => endTest([new P.DefHint().setValue('it', v)]))
     })
   }
 
@@ -193,7 +200,8 @@ var P = (() => {
         .then(x => binding(new AST.Inferred(x))
           .catch(() => x))
         .catch(() => parens(() => parseLam(env))
-          .then(binding)))
+          .then(x => binding(x)
+            .catch(() => x))))
 
 
       case 2: // Applied term
@@ -269,10 +277,13 @@ var P = (() => {
     nest_level = 0;
     return parseStmt([], [])
       .then(res => { debug('Expression:', res); return res })
-      .catch(() => { throw 'Parser error' })
+      .catch((e) => { console.log(e); throw 'Parser error' })
   }
 
-  return { parse, Eval, Assume }
+  return {
+    Hint, SigHint, DefHint,
+    parse
+  }
 })();
 
 

@@ -43,12 +43,12 @@ var U = (function () {
       this.length += va.length;
       return this
     }
-    lookup (value) {
+    lookupWith (value, con) {
       if (ValidatedPair.isPrototypeOf(this.elemType)) {
-        var dummy = new this.elemType();
+        var dummy = typeof con === 'undefined' ? new this.elemType() : new con();
         if (dummy.fstType.isPrototypeOf(value.constructor)) {
           for (let i = 0; i < this.length; i++) {
-            if (this[i].first().equal(value)) {
+            if (this[i].first().equal(value) && (typeof con === 'undefined' || con.isPrototypeOf(this[i]) || con === this[i].constructor)) {
               let result = this[i].second();
               return new U.ValidatedMaybe(dummy.sndType).just(result)
             }

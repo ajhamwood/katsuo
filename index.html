@@ -54,6 +54,7 @@ of a dependently typed lambda calculus" (Loeh, McBride, Swierstra), available <a
     <p><code>id2 := (t, x => x) : (t : Type) ==> t -> t</code><br />
     <code>idB := id2 Bool</code><br />
     <code>idB true</code></p>
+    <p>Reference to previous evaluation: <code>it</code></p>
   </div>
   <script src='js/utils.js'></script>
 
@@ -71,7 +72,7 @@ of a dependently typed lambda calculus" (Loeh, McBride, Swierstra), available <a
 // Page state
 let app = new $.Machine(Object.seal({
   lines: [],
-  state: new I.State(new AST.Context(), new AST.NameEnvironment()),
+  context: new TC.Context(),
   curIndex: 0,
   curLine: ''
 }))
@@ -85,7 +86,7 @@ let app = new $.Machine(Object.seal({
 })
 
 .on('eval', function (line) {
-  return I.evaluate(line, this.state).then(result => {
+  return I.evaluate(line, this.context).then(result => {
     result.forEach(l => { if (l) app.emit('print', l) })
   });
 })

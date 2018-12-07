@@ -11,47 +11,40 @@ var I = (() => {
     TC = require('./Typecheck.js')
   }
 
-  class State {
-    constructor (ctx, nameEnv) {
-      if (U.testCtor(ctx, AST.Context) && U.testCtor(nameEnv, AST.NameEnvironment)) {
-        Object.assign(this, { ctx, nameEnv })
-      } else throw '?'
-    }
+  function check (context, expr) {
+    return TC.initialInferType(context, expr).then(type =>
+      ({type, value: TC.inferEvaluate(expr, new TC.Environment(), context)}))
   }
 
-  function check (state, string, expr) {
-    return TC.initialInferType(state.ctx, state.nameEnv, expr).then(type =>
-      ({type, value: TC.inferEvaluate(expr, new AST.Environment(), state.nameEnv)}))
-  }
-
-  function evaluate (text, state, debug) {
-    return P.parse(L.tokenise(text, debug), debug).then(int => int.reduce((a, stmt) => {
+  function evaluate (text, context, debug) {
+    return P.parse(L.tokenise(text, debug), debug).then(int => int.reduce((acc, stmt) => {
       switch (stmt.constructor) {
-        case P.Assume:
-        return a.then(val => check(state, stmt.string, new AST.Annotated(stmt.type, new AST.Inferred(new AST.Star())))
+        case P.SigHint:
+        return acc.then(val => check(context, new AST.Annotated(stmt.second(), new AST.Inferred(new AST.Star())))
           .then(result => {
-            state.ctx.setValue(new AST.NameTypePair().setValue(new AST.Global(stmt.string), new AST.Type(result.value)));
-            console.log('In context: ' + stmt.string + ' : ' + PP.print(TC.initialQuote(result.value)));
+            context.setValue(new AST.Signature().setValue(new AST.Global(stmt.first()), new AST.Type(result.value)));
+            console.log('In context: ' + stmt.first() + ' : ' + PP.print(TC.initialQuote(result.value)));
             return val
           }));
 
-        case P.Eval:
-        return a.then(val => check(state, stmt.lhs, stmt.rhs)
+        case P.DefHint:
+        return acc.then(val => check(context, stmt.second())
           .then(result => {
-            let type = TC.initialQuote(result.type.value), string = stmt.lhs;
-            state.ctx.setValue(new AST.NameTypePair().setValue(new AST.Global(string), result.type));
-            state.nameEnv.setValue(new AST.NameValuePair().setValue(new AST.Global(string), result.value));
-            let ret = (string === 'it' ? PP.print(TC.initialQuote(result.value)) :  string) + ' : ' + PP.print(type);
-            if (string !== 'it') console.log('In context: ' + ret);
+            context.setValue(new AST.Signature().setValue(new AST.Global(stmt.first()), result.type));
+            context.setValue(new AST.Definition().setValue(new AST.Global(stmt.first()), result.value));
+            let ret = (stmt.first() === 'it' ? PP.print(TC.initialQuote(result.value)) : stmt.first()) +
+              ' : ' + PP.print(TC.initialQuote(result.type.value));
+            if (stmt.first() !== 'it') console.log('In context: ' + ret);
             val.push(ret);
             return val
           }))
+
+        default: throw new Error('?')
       }
-      return a
-    }, Promise.resolve([]))).catch(e => {console.log(e); return [e]})
+    }, Promise.resolve([]))).catch(e => [e])
   }
 
-  return { evaluate, State }
+  return { evaluate }
 })();
 
 
