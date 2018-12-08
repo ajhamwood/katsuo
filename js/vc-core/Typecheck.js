@@ -8,19 +8,19 @@ var TC = (() => {
   }
 
 
-  function vfree (name) {
+  function vfree (name) { // returns AST.Value
     if (U.testExtendedCtor(name, AST.Name)) {
       return new AST.VNeutral(new AST.NFree(name));
     } else throw new Error('?')
   }
 
-  function boundenv (value) {
+  function boundenv (value) { // returns AST.Declaration
     if (U.testExtendedCtor(value, AST.Value)) {
       return new AST.Signature().setValue(new AST.Global(''), new AST.Type(value))
     } else throw new Error('?')
   }
 
-  function inferEvaluate (inferrableTerm, context) {
+  function inferEvaluate (inferrableTerm, context) { // returns AST.Value
     if (U.testExtendedCtor(inferrableTerm, AST.InferrableTerm) && U.testCtor(context, Context)) {
       let value;
       switch (inferrableTerm.constructor) {
@@ -67,7 +67,7 @@ var TC = (() => {
     } else throw new Error('?')
   }
 
-  function vapply (value1, value2) {
+  function vapply (value1, value2) { // returns AST.Value
     if (U.testExtendedCtor(value1, AST.Value) && U.testExtendedCtor(value2, AST.Value)) {
       let value;
       switch (value1.constructor) {
@@ -86,7 +86,7 @@ var TC = (() => {
     } else throw new Error('?')
   }
 
-  function checkEvaluate (checkableTerm, context) {
+  function checkEvaluate (checkableTerm, context) { // returns AST.Value
     if (U.testExtendedCtor(checkableTerm, AST.CheckableTerm) && U.testCtor(context, Context)) {
       let value;
       switch (checkableTerm.constructor) {
@@ -106,11 +106,11 @@ var TC = (() => {
   }
 
 
-  function initialInferType (context, inferrableTerm) {
+  function initialInferType (context, inferrableTerm) { // returns AST.Type
     return inferType(0, context, inferrableTerm)
   }
 
-  function inferType (int, context, inferrableTerm) {
+  function inferType (int, context, inferrableTerm) { // returns AST.Type
     if (U.testInteger(int) && U.testCtor(context, Context) && U.testExtendedCtor(inferrableTerm, AST.InferrableTerm)) return Promise.resolve().then(() => {
       switch (inferrableTerm.constructor) {
         case AST.Annotated:
@@ -168,7 +168,7 @@ var TC = (() => {
     else return Promise.reject('?')
   }
 
-  function checkType(int, context, checkableTerm, type) {
+  function checkType(int, context, checkableTerm, type) { // returns undefined
     if (U.testInteger(int) && U.testCtor(context, Context) && U.testExtendedCtor(checkableTerm, AST.CheckableTerm) && U.testExtendedCtor(type, AST.Value)) {
       switch (checkableTerm.constructor) {
         case AST.Inferred:
@@ -187,7 +187,7 @@ var TC = (() => {
   }
 
 
-  function inferSubstitution (int, inferrableTerm1, inferrableTerm2) {
+  function inferSubstitution (int, inferrableTerm1, inferrableTerm2) { // returns AST.InferrableTerm
     if (U.testInteger(int) && U.testExtendedCtor(inferrableTerm1, AST.InferrableTerm) && U.testExtendedCtor(inferrableTerm2, AST.InferrableTerm)) {
       let inferrableTerm;
       switch (inferrableTerm2.constructor) {
@@ -228,7 +228,7 @@ var TC = (() => {
     } else throw new Error('?')
   }
 
-  function checkSubstitution (int, inferrableTerm, checkableTerm) {
+  function checkSubstitution (int, inferrableTerm, checkableTerm) { // returns AST.CheckableTerm
     if (U.testInteger(int) && U.testExtendedCtor(inferrableTerm, AST.InferrableTerm) && U.testExtendedCtor(checkableTerm, AST.CheckableTerm)) {
       let checkTerm;
       switch (checkableTerm.constructor) {
@@ -248,11 +248,11 @@ var TC = (() => {
   }
 
 
-  function initialQuote (value) {
+  function initialQuote (value) { // returns AST.CheckableTerm
     return quote(0, value)
   }
 
-  function quote (int, value) {
+  function quote (int, value) { // returns AST.CheckableTerm
     if (U.testInteger(int) && U.testExtendedCtor(value, AST.Value)) {
       let checkableTerm;
       switch (value.constructor) {
@@ -279,7 +279,7 @@ var TC = (() => {
     } else throw new Error('?')
   }
 
-  function neutralQuote (int, neutral) {
+  function neutralQuote (int, neutral) { // returns AST.InferrableTerm
     if (U.testInteger(int) && U.testExtendedCtor(neutral, AST.Neutral)) {
       let inferrableTerm;
       switch (neutral.constructor) {
@@ -299,7 +299,7 @@ var TC = (() => {
   }
 
 
-  function boundfree (int, name) {
+  function boundfree (int, name) { // returns AST.InferrableTerm
     if (U.testInteger(int) && U.testExtendedCtor(name, AST.Name)) {
       let inferrableTerm;
       switch (name.constructor) {

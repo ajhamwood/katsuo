@@ -5,14 +5,27 @@ var AST = (() => {
   if (typeof module !== 'undefined') U = require('./Utilities.js');
 
 
+  /*
+  class TypeLevel extends Term {
+    constructor (level) {
+      if (U.testInteger(level)) Object.assign(this, { level });
+      else throw new Error('?')
+    }
+    show () { return `Type${this.level ? this.level : ''}` }
+  }
+  */
+
+  class Term extends U.Eq {}
+
+
   class InferrableTerm extends U.Eq {}
 
   class Annotated extends InferrableTerm {
     constructor (checkableTerm1, checkableTerm2) {
       super();
-      if (U.testExtendedCtor(checkableTerm1, CheckableTerm) && U.testExtendedCtor(checkableTerm2, CheckableTerm)) {
-        Object.assign(this, { checkableTerm1, checkableTerm2 })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(checkableTerm1, CheckableTerm) && U.testExtendedCtor(checkableTerm2, CheckableTerm))
+        Object.assign(this, { checkableTerm1, checkableTerm2 });
+      else throw new Error('?')
     }
     show () { return `Ann(${this.checkableTerm1.show()}, ${this.checkableTerm2.show()})` }
   }
@@ -24,9 +37,9 @@ var AST = (() => {
   class Pi extends InferrableTerm {
     constructor (checkableTerm1, checkableTerm2) {
       super()
-      if (U.testExtendedCtor(checkableTerm1, CheckableTerm) && U.testExtendedCtor(checkableTerm2, CheckableTerm)) {
-        Object.assign(this, { checkableTerm1, checkableTerm2 })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(checkableTerm1, CheckableTerm) && U.testExtendedCtor(checkableTerm2, CheckableTerm))
+        Object.assign(this, { checkableTerm1, checkableTerm2 });
+      else throw new Error('?')
     }
     show () { return `Pi(${this.checkableTerm1.show()}, ${this.checkableTerm2.show()})` }
   }
@@ -34,9 +47,8 @@ var AST = (() => {
   class Bound extends InferrableTerm {
     constructor (int) {
       super();
-      if (U.testInteger(int)) {
-        Object.assign(this, { int })
-      } else throw new Error('?')
+      if (U.testInteger(int)) Object.assign(this, { int });
+      else throw new Error('?')
     }
     show () { return `Bound ${this.int}` }
   }
@@ -44,9 +56,8 @@ var AST = (() => {
   class Free extends InferrableTerm {
     constructor (name) {
       super();
-      if (U.testExtendedCtor(name, Name)) {
-        Object.assign(this, { name })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(name, Name)) Object.assign(this, { name })
+      else throw new Error('?')
     }
     show () { return `Free ${this.name.show()}` }
   }
@@ -54,9 +65,9 @@ var AST = (() => {
   class Apply extends InferrableTerm {
     constructor (inferrableTerm, checkableTerm) {
       super();
-      if (U.testExtendedCtor(inferrableTerm, InferrableTerm) && U.testExtendedCtor(checkableTerm, CheckableTerm)) {
-        Object.assign(this, { inferrableTerm, checkableTerm })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(inferrableTerm, InferrableTerm) && U.testExtendedCtor(checkableTerm, CheckableTerm))
+        Object.assign(this, { inferrableTerm, checkableTerm });
+      else throw new Error('?')
     }
     show () { return `${this.inferrableTerm.show()} :@: ${this.checkableTerm.show()}` }
   }
@@ -71,9 +82,8 @@ var AST = (() => {
   class Inferred extends CheckableTerm {
     constructor (inferrableTerm) {
       super();
-      if (U.testExtendedCtor(inferrableTerm, InferrableTerm)) {
-        Object.assign(this, { inferrableTerm })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(inferrableTerm, InferrableTerm)) Object.assign(this, { inferrableTerm })
+      else throw new Error('?')
     }
     show () { return `Inf ${this.inferrableTerm.show()}` }
   }
@@ -81,9 +91,8 @@ var AST = (() => {
   class Lambda extends CheckableTerm {
     constructor (checkableTerm) {
       super();
-      if (U.testExtendedCtor(checkableTerm, CheckableTerm)) {
-        Object.assign(this, { checkableTerm })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(checkableTerm, CheckableTerm)) Object.assign(this, { checkableTerm })
+      else throw new Error('?')
     }
     show () { return `Lam ${this.checkableTerm.show()}` }
   }
@@ -98,9 +107,8 @@ var AST = (() => {
   class Global extends Name {
     constructor (string) {
       super();
-      if (U.testCtor(string, String)) {
-        Object.assign(this, { string })
-      } else throw new Error('?')
+      if (U.testCtor(string, String)) Object.assign(this, { string });
+      else throw new Error('?')
     }
     show () { return `Global '${this.string}'` }
   }
@@ -108,9 +116,8 @@ var AST = (() => {
   class Local extends Name {
     constructor (int) {
       super();
-      if (U.testInteger(int)) {
-        Object.assign(this, { int })
-      } else throw new Error('?')
+      if (U.testInteger(int)) Object.assign(this, { int })
+      else throw new Error('?')
     }
     show () { return `Local ${this.int}` }
   }
@@ -118,9 +125,8 @@ var AST = (() => {
   class Quote extends Name {
     constructor (int) {
       super();
-      if (U.testInteger(int)) {
-        Object.assign(this, { int })
-      } else throw new Error('?')
+      if (U.testInteger(int)) Object.assign(this, { int });
+      else throw new Error('?')
     }
     show () { return `Quote ${this.int}` }
   }
@@ -131,9 +137,8 @@ var AST = (() => {
   class VLambda extends Value {
     constructor (func) { // Not natural to validate for function ADT in javascript
       super();
-      if (U.testCtor(func, Function)) {
-        Object.assign(this, { func })
-      } else throw new Error('?')
+      if (U.testCtor(func, Function)) Object.assign(this, { func });
+      else throw new Error('?')
     }
   }
 
@@ -142,18 +147,16 @@ var AST = (() => {
   class VPi extends Value {
     constructor (value, func) { //
       super();
-      if (U.testExtendedCtor(value, Value) && U.testCtor(func, Function)) {
-        Object.assign(this, { value, func })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(value, Value) && U.testCtor(func, Function)) Object.assign(this, { value, func });
+      else throw new Error('?')
     }
   }
 
   class VNeutral extends Value {
     constructor (neutral) {
       super();
-      if (U.testExtendedCtor(neutral, Neutral)) {
-        Object.assign(this, { neutral })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(neutral, Neutral)) Object.assign(this, { neutral });
+      else throw new Error('?')
     }
   }
 
@@ -163,27 +166,24 @@ var AST = (() => {
   class NFree extends Neutral {
     constructor (name) {
       super();
-      if (U.testExtendedCtor(name, Name)) {
-        Object.assign(this, { name })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(name, Name)) Object.assign(this, { name });
+      else throw new Error('?')
     }
   }
 
   class NApply extends Neutral {
     constructor (neutral, value) {
       super();
-      if (U.testExtendedCtor(neutral, Neutral) && U.testExtendedCtor(value, Value)) {
-        Object.assign(this, { neutral, value })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(neutral, Neutral) && U.testExtendedCtor(value, Value)) Object.assign(this, { neutral, value });
+      else throw new Error('?')
     }
   }
 
 
   class Type {
     constructor (value) {
-      if (U.testExtendedCtor(value, Value)) {
-        Object.assign(this, { value })
-      } else throw new Error('?')
+      if (U.testExtendedCtor(value, Value)) Object.assign(this, { value });
+      else throw new Error('?')
     }
   }
 
@@ -216,6 +216,8 @@ var AST = (() => {
 
 
   return {
+    Term,
+    
     InferrableTerm, Annotated, Star, Pi, Bound, Free, Apply,
     CheckableTerm, Inferred, Lambda,
     Name, Global, Local, Quote,
