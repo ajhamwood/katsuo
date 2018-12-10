@@ -5,18 +5,72 @@ var AST = (() => {
   if (typeof module !== 'undefined') U = require('./Utilities.js');
 
 
-  /*
+  class Term extends U.Eq {}
+
   class TypeLevel extends Term {
     constructor (level) {
-      if (U.testInteger(level)) Object.assign(this, { level });
-      else throw new Error('?')
+      super();
+      if (U.testInteger(level)) Object.assign(this, {level});
+      else throw new Error('Cannot form universe') // heh
     }
     show () { return `Type${this.level ? this.level : ''}` }
   }
-  */
 
-  class Term extends U.Eq {}
+  class Ann extends Term {
+    constructor (term1, term2) {
+      super();
+      if (U.testExtendedCtor(term1, Term) && U.testExtendedCtor(term2, Term)) Object.assign(this, {term1, term2});
+      else throw new Error('Cannot form term')
+    }
+    show () { return `Ann(${this.term1.show()}, ${this.term2.show()})` }
+  }
 
+  class Pi extends Term {
+    constructor (term1, term2) {
+      super(term1, term2);
+      if (U.testExtendedCtor(term1, Term) && U.testExtendedCtor(term2, Term)) Object.assign(this, {term1, term2});
+      else throw new Error('Cannot form term')
+    }
+    show () { return `Pi(${this.term1.show()}, ${this.term2.show()})` }
+  }
+
+  class Lam extends Term {
+    constructor (term) {
+      super();
+      if (U.testExtendedCtor(term, Term)) Object.assign(this, {term});
+      else throw new Error('Cannot form term')
+    }
+    show () { return `Lam ${this.term.show()}` }
+  }
+
+  class App extends Term {
+    constructor (term1, term2) {
+      super();
+      if (U.testExtendedCtor(term1, Term) && U.testExtendedCtor(term2, Term)) Object.assign(this, {term1, term2});
+      else throw new Error('Cannot form term')
+    }
+    show () { return `${this.term1.show()} :@: ${this.term2.show()}` }
+  }
+
+  class BoundVar extends Term {
+    constructor (distance) {
+      super();
+      if (U.testInteger(distance)) Object.assign(this, {distance});
+      else throw new Error('Cannot form term')
+    }
+    show () { return `Bound ${this.distance}` }
+  }
+
+  class FreeVar extends Term {
+    constructor (name) {
+      super();
+      if (U.testExtendedCtor(name, Name)) Object.assign(this, {name});
+      else throw new Error('Cannot form term')
+    }
+    show () { return `Free ${this.name.show()}` }
+  }
+
+/*
 
   class InferrableTerm extends U.Eq {}
 
@@ -97,6 +151,7 @@ var AST = (() => {
     show () { return `Lam ${this.checkableTerm.show()}` }
   }
 
+*/
 
   class Name extends U.Eq {
     constructor () {
@@ -108,27 +163,27 @@ var AST = (() => {
     constructor (string) {
       super();
       if (U.testCtor(string, String)) Object.assign(this, { string });
-      else throw new Error('?')
+      else throw new Error('Cannot form name')
     }
     show () { return `Global '${this.string}'` }
   }
 
   class Local extends Name {
-    constructor (int) {
+    constructor (index) {
       super();
-      if (U.testInteger(int)) Object.assign(this, { int })
-      else throw new Error('?')
+      if (U.testInteger(index)) Object.assign(this, { index })
+      else throw new Error('Cannot form name')
     }
-    show () { return `Local ${this.int}` }
+    show () { return `Local ${this.index}` }
   }
 
   class Quote extends Name {
-    constructor (int) {
+    constructor (index) {
       super();
-      if (U.testInteger(int)) Object.assign(this, { int });
-      else throw new Error('?')
+      if (U.testInteger(index)) Object.assign(this, { index });
+      else throw new Error('Cannot form name')
     }
-    show () { return `Quote ${this.int}` }
+    show () { return `Quote ${this.index}` }
   }
 
 
@@ -138,17 +193,23 @@ var AST = (() => {
     constructor (func) { // Not natural to validate for function ADT in javascript
       super();
       if (U.testCtor(func, Function)) Object.assign(this, { func });
-      else throw new Error('?')
+      else throw new Error('Cannot form value')
     }
   }
 
-  class VStar extends Value {}
+  class VType extends Value {
+    constructor (level) {
+      super()
+      if (U.testInteger(level)) Object.assign(this, {level});
+      else throw new Error('Cannot form value')
+    }
+  }
 
   class VPi extends Value {
     constructor (value, func) { //
       super();
       if (U.testExtendedCtor(value, Value) && U.testCtor(func, Function)) Object.assign(this, { value, func });
-      else throw new Error('?')
+      else throw new Error('Cannot form value')
     }
   }
 
@@ -156,7 +217,7 @@ var AST = (() => {
     constructor (neutral) {
       super();
       if (U.testExtendedCtor(neutral, Neutral)) Object.assign(this, { neutral });
-      else throw new Error('?')
+      else throw new Error('Cannot form value')
     }
   }
 
@@ -167,7 +228,7 @@ var AST = (() => {
     constructor (name) {
       super();
       if (U.testExtendedCtor(name, Name)) Object.assign(this, { name });
-      else throw new Error('?')
+      else throw new Error('Cannot form neutral term')
     }
   }
 
@@ -175,7 +236,7 @@ var AST = (() => {
     constructor (neutral, value) {
       super();
       if (U.testExtendedCtor(neutral, Neutral) && U.testExtendedCtor(value, Value)) Object.assign(this, { neutral, value });
-      else throw new Error('?')
+      else throw new Error('Cannot form neutral term')
     }
   }
 
@@ -183,7 +244,7 @@ var AST = (() => {
   class Type {
     constructor (value) {
       if (U.testExtendedCtor(value, Value)) Object.assign(this, { value });
-      else throw new Error('?')
+      else throw new Error('Cannot form type')
     }
   }
 
@@ -216,13 +277,12 @@ var AST = (() => {
 
 
   return {
-    Term,
-    
-    InferrableTerm, Annotated, Star, Pi, Bound, Free, Apply,
-    CheckableTerm, Inferred, Lambda,
+    Term, TypeLevel, Ann, Pi, Lam, App, BoundVar, FreeVar,
+    /*InferrableTerm, Annotated, Star, Pi, Bound, Free, Apply,
+    CheckableTerm, Inferred, Lambda,*/
     Name, Global, Local, Quote,
 
-    Value, VLambda, VStar, VPi, VNeutral,
+    Value, VLambda, /*VStar,*/ VType, VPi, VNeutral,
 
     Neutral, NFree, NApply,
 

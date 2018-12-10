@@ -12,18 +12,18 @@ var I = (() => {
   }
 
   function check (context, expr) {
-    return TC.initialInferType(context, expr).then(type =>
-      ({type, value: TC.inferEvaluate(expr, context)}))
+    return TC.typecheckTerm(context, expr).then(type =>
+      ({type, value: TC.evalTerm(context, expr)}))
   }
 
   function evaluate (text, context, debug) {
     return P.parse(L.tokenise(text, debug), debug).then(int => int.reduce((acc, stmt) => {
       switch (stmt.constructor) {
         case P.SigHint:
-        return acc.then(val => check(context, new AST.Annotated(stmt.second(), new AST.Inferred(new AST.Star())))
+        return acc.then(val => check(context, new AST.Ann(stmt.second(), new AST.TypeLevel(0)))
           .then(result => {
             context.setValue(new AST.Signature().setValue(new AST.Global(stmt.first()), new AST.Type(result.value)));
-            console.log('In context: ' + stmt.first() + ' : ' + PP.print(TC.initialQuote(result.value)));
+            console.log('In context: ' + stmt.first() + ' : ' + PP.print(TC.quote(result.value)));
             return val
           }));
 
@@ -32,8 +32,8 @@ var I = (() => {
           .then(result => {
             context.setValue(new AST.Signature().setValue(new AST.Global(stmt.first()), result.type));
             context.setValue(new AST.Definition().setValue(new AST.Global(stmt.first()), result.value));
-            let ret = (stmt.first() === 'it' ? PP.print(TC.initialQuote(result.value)) : stmt.first()) +
-              ' : ' + PP.print(TC.initialQuote(result.type.value));
+            let ret = (stmt.first() === 'it' ? PP.print(TC.quote(result.value)) : stmt.first()) +
+              ' : ' + PP.print(TC.quote(result.type.value));
             if (stmt.first() !== 'it') console.log('In context: ' + ret);
             val.push(ret);
             return val

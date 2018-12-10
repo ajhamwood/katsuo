@@ -8,63 +8,163 @@ var TC = (() => {
   }
 
 
+  function typecheckTerm (ctx, term, index = 0, type) { // returns AST.Type
+    if (U.testCtor(ctx, Context) && U.testExtendedCtor(term, AST.Term) && U.testInteger(index)) return Promise.resolve().then(() => {
+      switch (term.constructor) {
+        case AST.TypeLevel:
+        return new AST.Type(new AST.VType(term.level + 1))
+
+        case AST.Ann:
+        return typecheckTerm(ctx, term.term2, index, new AST.VType(0))
+          .then(() => {
+            let type = evalTerm(ctx, term.term2);
+            return typecheckTerm(ctx, term.term1, index, type)
+              .then(() => new AST.Type(type))
+          })
+
+        case AST.Pi:
+        return typecheckTerm(ctx, term.term1, index, new AST.VType(0))
+          .then(() => {
+            let type = evalTerm(ctx, term.term1);
+            return typecheckTerm(ctx.cons(new AST.Signature().setValue(new AST.Local(index), new AST.Type(type)), true),
+              substTerm(new AST.FreeVar(new AST.Local(index)), term.term2, 0), index + 1, new AST.VType(0))
+              .then(() => new AST.Type(new AST.VType(0)))
+          })
+
+        case AST.Lam:
+        if (U.testExtendedCtor(type, AST.Value)) {
+          if (U.testCtor(type, AST.VPi)) return typecheckTerm(ctx.cons(new AST.Signature().setValue(new AST.Local(index), new AST.Type(type.value)), true),
+            substTerm(new AST.FreeVar(new AST.Local(index)), term.term, 0), index + 1, type.func(vfree(new AST.Local(index))));
+          else throw new Error('Type mismatch')
+        } else throw new Error('Lambda must be annotated')
+
+
+        case AST.App:
+        return typecheckTerm(ctx, term.term1, index)
+          .then(res => {
+            if (U.testCtor(res.value, AST.VPi)) {
+              let {value, func} = res.value;
+              return typecheckTerm(ctx, term.term2, index, value)
+                .then(() => new AST.Type(func(evalTerm(ctx, term.term2))))
+            } else throw new Error('Illegal application')
+          })
+
+        case AST.FreeVar:
+        let maybeType = ctx.lookupWith(term.name, AST.Signature);
+        switch (maybeType.constructor) {
+          case maybeType.Just: return maybeType.value;
+          case maybeType.Nothing: throw new Error('Unknown identifier');
+          default: throw new Error('Broken Maybe')
+        }
+
+        default: throw new Error('Bad term argument (infer)')
+      }
+    }).then(res => {
+      if (U.testCtor(res, AST.Type)) return res;
+      else throw new Error('Bad result (infer)')
+    });
+    else return Promise.reject(new Error('Bad arguments (infer)'))
+  }
+
+  function evalTerm (ctx, term) { // returns AST.Value
+    if (U.testCtor(ctx, Context) && U.testExtendedCtor(term, AST.Term)) {
+      let value;
+      switch (term.constructor) {
+        case AST.TypeLevel:
+        value = new AST.VType(term.level);
+        break;
+
+        case AST.Ann:
+        value = evalTerm(ctx, term.term1);
+        break;
+
+        case AST.Pi:
+        value = new AST.VPi(evalTerm(ctx, term.term1), x => evalTerm(ctx.cons(boundenv(x), false), term.term2));
+        break;
+
+        case AST.Lam:
+        value = new AST.VLambda(x => evalTerm(ctx.cons(boundenv(x), false), term.term));
+        break;
+
+        case AST.App:
+        value = vapply(evalTerm(ctx, term.term1), evalTerm(ctx, term.term2));
+        break;
+
+        case AST.BoundVar:
+        value = ctx.getValue(ctx.globals + term.distance).second().value;
+        break;
+
+        case AST.FreeVar:
+        let maybeValue = ctx.lookupWith(term.name, AST.Definition);
+        switch (maybeValue.constructor) {
+          case maybeValue.Just:
+          value = maybeValue.value;
+          break;
+
+          case maybeValue.Nothing:
+          value = vfree(term.name);
+          break;
+
+          default: throw new Error('Broken Maybe')
+        }
+        break;
+
+        default: throw new Error('Bad term argument (eval)')
+      }
+      if (U.testExtendedCtor(value, AST.Value)) return value;
+      else throw new Error('Bad result (eval)')
+    } else throw new Error('Bad arguments (eval)')
+  }
+
+  function substTerm (term1, term2, index) { // returns AST.Term
+    if (U.testExtendedCtor(term1, AST.Term) && U.testExtendedCtor(term2, AST.Term) && U.testInteger(index)) {
+      let term;
+      switch (term2.constructor) {
+        case AST.TypeLevel:
+        term = term2;
+        break;
+
+        case AST.Ann:
+        term = new AST.Ann(substTerm(term1, term2.term1, index), substTerm(term1, term2.term2, index));
+        break;
+
+        case AST.Pi:
+        term = new AST.Pi(substTerm(term1, term2.term1, index), substTerm(term1, term2.term2, index + 1));
+        break;
+
+        case AST.Lam:
+        term = new AST.Lam(substTerm(term1, term2.term, index + 1));
+        break;
+
+        case AST.App:
+        term = new AST.Apply(substTerm(term1, term2.term1, index), substTerm(term1, term2.term2, index));
+        break;
+
+        case AST.BoundVar:
+        term = index === term2.distance ? term1 : term2;
+        break;
+
+        case AST.FreeVar:
+        term = term2;
+        break;
+
+        default: throw new Error('Bad term argument (subst)')
+      }
+      if (U.testExtendedCtor(term, AST.Term)) return term;
+      else throw new Error('Bad result (subst)')
+    } else throw new Error('Bad arguments (subst)')
+  }
+
   function vfree (name) { // returns AST.Value
     if (U.testExtendedCtor(name, AST.Name)) {
       return new AST.VNeutral(new AST.NFree(name));
-    } else throw new Error('?')
+    } else throw new Error('Bad argument (vfree)')
   }
 
   function boundenv (value) { // returns AST.Declaration
     if (U.testExtendedCtor(value, AST.Value)) {
       return new AST.Signature().setValue(new AST.Global(''), new AST.Type(value))
-    } else throw new Error('?')
-  }
-
-  function inferEvaluate (inferrableTerm, context) { // returns AST.Value
-    if (U.testExtendedCtor(inferrableTerm, AST.InferrableTerm) && U.testCtor(context, Context)) {
-      let value;
-      switch (inferrableTerm.constructor) {
-        case AST.Annotated:
-        value = checkEvaluate(inferrableTerm.checkableTerm1, context)
-        break;
-
-        case AST.Star:
-        value = new AST.VStar()
-        break;
-
-        case AST.Pi:
-        value = new AST.VPi(
-          checkEvaluate(inferrableTerm.checkableTerm1, context),
-          x => checkEvaluate(inferrableTerm.checkableTerm2, context.cons(boundenv(x), false)))
-        break;
-
-        case AST.Bound:
-        value = context.getValue(context.globals + inferrableTerm.int).second().value
-        break;
-
-        case AST.Free:
-        let maybeValue = context.lookupWith(inferrableTerm.name, AST.Definition);
-        switch (maybeValue.constructor) {
-          case maybeValue.Nothing:
-          value = vfree(inferrableTerm.name);
-          break;
-
-          case maybeValue.Just:
-          value = maybeValue.value
-        }
-        break;
-
-        case AST.Apply:
-        value = vapply(
-          inferEvaluate(inferrableTerm.inferrableTerm, context),
-          checkEvaluate(inferrableTerm.checkableTerm, context))
-        break;
-
-        default: throw new Error('?')
-      }
-      if (U.testExtendedCtor(value, AST.Value)) return value;
-      else throw new Error('?')
-    } else throw new Error('?')
+    } else throw new Error('Bad argument (boundenv)')
   }
 
   function vapply (value1, value2) { // returns AST.Value
@@ -79,238 +179,72 @@ var TC = (() => {
         value = new AST.VNeutral(new AST.NApply(value1.neutral, value2));
         break;
 
-        default: throw new Error('?')
+        default: throw new Error('Bad apply value argument (vapply)')
       }
       if (U.testExtendedCtor(value, AST.Value)) return value;
-      else throw new Error('?')
-    } else throw new Error('?')
-  }
-
-  function checkEvaluate (checkableTerm, context) { // returns AST.Value
-    if (U.testExtendedCtor(checkableTerm, AST.CheckableTerm) && U.testCtor(context, Context)) {
-      let value;
-      switch (checkableTerm.constructor) {
-        case AST.Inferred:
-        value = inferEvaluate(checkableTerm.inferrableTerm, context)
-        break;
-
-        case AST.Lambda:
-        value = new AST.VLambda(x => checkEvaluate(checkableTerm.checkableTerm, context.cons(boundenv(x), false)))
-        break;
-
-        default: throw new Error('?')
-      }
-      if (U.testExtendedCtor(value, AST.Value)) return value;
-      else throw new Error('?')
-    } else throw new Error('?')
+      else throw new Error('Bad result (vapply)')
+    } else throw new Error('Bad arguments (vapply)')
   }
 
 
-  function initialInferType (context, inferrableTerm) { // returns AST.Type
-    return inferType(0, context, inferrableTerm)
-  }
-
-  function inferType (int, context, inferrableTerm) { // returns AST.Type
-    if (U.testInteger(int) && U.testCtor(context, Context) && U.testExtendedCtor(inferrableTerm, AST.InferrableTerm)) return Promise.resolve().then(() => {
-      switch (inferrableTerm.constructor) {
-        case AST.Annotated:
-        return checkType(int, context, inferrableTerm.checkableTerm2, new AST.VStar())
-          .then(() => {
-            let type = checkEvaluate(inferrableTerm.checkableTerm2, context);
-            return checkType(int, context, inferrableTerm.checkableTerm1, type)
-              .then(() => new AST.Type(type))
-          });
-
-        case AST.Star:
-        return new AST.Type(new AST.VStar());
-
-        case AST.Pi:
-        return checkType(int, context, inferrableTerm.checkableTerm1, new AST.VStar())
-          .then(() => {
-            let type = checkEvaluate(inferrableTerm.checkableTerm1, context);
-            return checkType(int + 1, context.cons(new AST.Signature().setValue(new AST.Local(int), new AST.Type(type)), true),
-              checkSubstitution(0, new AST.Free(new AST.Local(int)), inferrableTerm.checkableTerm2), new AST.VStar())
-              .then(() => new AST.Type(new AST.VStar()));
-          })
-
-        case AST.Free:
-        let maybeType = context.lookupWith(inferrableTerm.name, AST.Signature);
-        switch (maybeType.constructor) {
-          case maybeType.Just:
-          return maybeType.value;
-
-          case maybeType.Nothing:
-          throw new Error('Unknown identifier');
-
-          default: throw new Error('?')
-        }
-
-        case AST.Apply:
-        return inferType(int, context, inferrableTerm.inferrableTerm)
-          .then(res => {
-            switch (res.value.constructor) {
-              case AST.VPi:
-              let {value, func} = res.value;
-              return checkType(int, context, inferrableTerm.checkableTerm, value)
-                .then(() => new AST.Type(func(checkEvaluate(inferrableTerm.checkableTerm, context))));
-
-              default:
-              throw new Error('Illegal application')
-            }
-          })
-
-        default: throw new Error('?')
-      }
-    }).then(res => {
-      if (U.testCtor(res, AST.Type)) return res;
-      else throw new Error('?')
-    });
-    else return Promise.reject('?')
-  }
-
-  function checkType(int, context, checkableTerm, type) { // returns undefined
-    if (U.testInteger(int) && U.testCtor(context, Context) && U.testExtendedCtor(checkableTerm, AST.CheckableTerm) && U.testExtendedCtor(type, AST.Value)) {
-      switch (checkableTerm.constructor) {
-        case AST.Inferred:
-        return inferType(int, context, checkableTerm.inferrableTerm).then(res => {
-          if (!initialQuote(res.value).equal(initialQuote(type))) throw new Error('Type mismatch')
-        });
-
-        case AST.Lambda:
-        if (U.testCtor(type, AST.VPi)) return checkType(int + 1, context.cons(new AST.Signature().setValue(new AST.Local(int), new AST.Type(type.value)), true),
-          checkSubstitution(0, new AST.Free(new AST.Local(int)), checkableTerm.checkableTerm), type.func(vfree(new AST.Local(int))));
-        else throw new Error('Type mismatch')
-
-        default: throw new Error('Type mismatch')
-      }
-    } else throw new Error('?')
-  }
-
-
-  function inferSubstitution (int, inferrableTerm1, inferrableTerm2) { // returns AST.InferrableTerm
-    if (U.testInteger(int) && U.testExtendedCtor(inferrableTerm1, AST.InferrableTerm) && U.testExtendedCtor(inferrableTerm2, AST.InferrableTerm)) {
-      let inferrableTerm;
-      switch (inferrableTerm2.constructor) {
-        case AST.Annotated:
-        inferrableTerm = new AST.Annotated(
-          checkSubstitution(int, inferrableTerm1, inferrableTerm2.checkableTerm1),
-          checkSubstitution(int, inferrableTerm1, inferrableTerm2.checkableTerm2));
-        break;
-
-        case AST.Star:
-        inferrableTerm = inferrableTerm2
-        break;
-
-        case AST.Pi:
-        inferrableTerm = new AST.Pi(
-          checkSubstitution(int, inferrableTerm1, inferrableTerm2.checkableTerm1),
-          checkSubstitution(int + 1, inferrableTerm1, inferrableTerm2.checkableTerm2))
-        break;
-
-        case AST.Bound:
-        inferrableTerm = int === inferrableTerm2.int ? inferrableTerm1 : inferrableTerm2;
-        break;
-
-        case AST.Free:
-        inferrableTerm = inferrableTerm2;
-        break;
-
-        case AST.Apply:
-        inferrableTerm = new AST.Apply(
-          inferSubstitution(int, inferrableTerm1, inferrableTerm2.inferrableTerm),
-          checkSubstitution(int, inferrableTerm1, inferrableTerm2.checkableTerm))
-        break;
-
-        default: throw new Error('?')
-      }
-      if (U.testExtendedCtor(inferrableTerm, AST.InferrableTerm)) return inferrableTerm;
-      else throw new Error('?')
-    } else throw new Error('?')
-  }
-
-  function checkSubstitution (int, inferrableTerm, checkableTerm) { // returns AST.CheckableTerm
-    if (U.testInteger(int) && U.testExtendedCtor(inferrableTerm, AST.InferrableTerm) && U.testExtendedCtor(checkableTerm, AST.CheckableTerm)) {
-      let checkTerm;
-      switch (checkableTerm.constructor) {
-        case AST.Inferred:
-        checkTerm = new AST.Inferred(inferSubstitution(int, inferrableTerm, checkableTerm.inferrableTerm));
-        break;
-
-        case AST.Lambda:
-        checkTerm = new AST.Lambda(checkSubstitution(int + 1, inferrableTerm, checkableTerm.checkableTerm));
-        break;
-
-        default: throw new Error('?')
-      }
-      if (U.testExtendedCtor(checkTerm, AST.CheckableTerm)) return checkTerm;
-      else throw new Error('?')
-    } else throw new Error('?')
-  }
-
-
-  function initialQuote (value) { // returns AST.CheckableTerm
-    return quote(0, value)
-  }
-
-  function quote (int, value) { // returns AST.CheckableTerm
-    if (U.testInteger(int) && U.testExtendedCtor(value, AST.Value)) {
-      let checkableTerm;
+  function quote (value, index = 0) { // returns AST.Term
+    if (U.testInteger(index) && U.testExtendedCtor(value, AST.Value)) {
+      let term;
       switch (value.constructor) {
-        case AST.VLambda:
-        checkableTerm = new AST.Lambda(quote(int + 1, value.func(vfree(new AST.Quote(int)))));
-        break;
-
-        case AST.VStar:
-        checkableTerm = new AST.Inferred(new AST.Star());
+        case AST.VType:
+        term = new AST.TypeLevel(0);
         break;
 
         case AST.VPi:
-        checkableTerm = new AST.Inferred(new AST.Pi(quote(int, value.value), quote(int + 1, value.func(vfree(new AST.Quote(int))))));
+        term = new AST.Pi(quote(value.value, index), quote(value.func(vfree(new AST.Quote(index))), index + 1));
+        break;
+
+        case AST.VLambda:
+        term = new AST.Lambda(quote(value.func(vfree(new AST.Quote(index))), index + 1));
         break;
 
         case AST.VNeutral:
-        checkableTerm = new AST.Inferred(neutralQuote(int, value.neutral));
+        term = neutralQuote(value.neutral, index);
         break;
 
-        default: throw new Error('?')
+        default: throw new Error('Bad value argument (quote)')
       }
-      if (U.testExtendedCtor(checkableTerm, AST.CheckableTerm)) return checkableTerm;
-      else throw new Error('?')
-    } else throw new Error('?')
+      if (U.testExtendedCtor(term, AST.Term)) return term;
+      else throw new Error('Bad result (quote)')
+    } else throw new Error('Bad arguments (quote)')
   }
 
-  function neutralQuote (int, neutral) { // returns AST.InferrableTerm
-    if (U.testInteger(int) && U.testExtendedCtor(neutral, AST.Neutral)) {
-      let inferrableTerm;
+  function neutralQuote (neutral, index) { // returns AST.Term
+    if (U.testExtendedCtor(neutral, AST.Neutral) && U.testInteger(index)) {
+      let term;
       switch (neutral.constructor) {
         case AST.NFree:
-        inferrableTerm = boundfree(int, neutral.name);
+        term = boundfree(neutral.name, index);
         break;
 
         case AST.NApply:
-        inferrableTerm = new AST.Apply(neutralQuote(int, neutral.neutral), quote(int, neutral.value));
+        term = new AST.Apply(neutralQuote(neutral.neutral, index), quote(neutral.value, index));
         break;
 
-        default: throw new Error('?')
+        default: throw new Error('Bad neutral argument (neutralQuote)')
       }
-      if (U.testExtendedCtor(inferrableTerm, AST.InferrableTerm)) return inferrableTerm;
-      else throw new Error('?')
-    } else throw new Error('?')
+      if (U.testExtendedCtor(term, AST.Term)) return term;
+      else throw new Error('Bad result (neutralQuote)')
+    } else throw new Error('Bad arguments (neutralQuote)')
   }
 
-
-  function boundfree (int, name) { // returns AST.InferrableTerm
-    if (U.testInteger(int) && U.testExtendedCtor(name, AST.Name)) {
-      let inferrableTerm;
+  function boundfree (name, index) { // returns AST.Term
+    if (U.testExtendedCtor(name, AST.Name) && U.testInteger(index)) {
+      let term;
       switch (name.constructor) {
         case AST.Quote:
-        inferrableTerm = new AST.Bound(int - name.int - 1);
+        term = new AST.BoundVar(index - name.index - 1);
         break;
 
         default:
-        inferrableTerm = new AST.Free(name)
+        term = new AST.FreeVar(name)
       }
-      if (U.testExtendedCtor(inferrableTerm, AST.InferrableTerm)) return inferrableTerm;
+      if (U.testExtendedCtor(term, AST.Term)) return term;
       else throw new Error('?')
     } else throw new Error('?')
   }
@@ -329,7 +263,7 @@ var TC = (() => {
     }
   }
 
-  return { inferEvaluate, initialInferType, initialQuote, Context }
+  return { typecheckTerm, evalTerm, quote, Context }
 })();
 
 

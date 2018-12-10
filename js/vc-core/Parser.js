@@ -13,7 +13,7 @@ var P = (() => {
     else if (msg === 'Assign lhs?') console.log(`%c${msg}`, 'font-weight: bold; color: goldenrod', t, n);
     else if (msg === 'Declare') console.log(`%c${msg}`, 'font-weight: bold; color: purple', t, n);
     else if (msg === 'Evaluate') console.log(`%c${msg}`, 'font-weight: bold; color: forestgreen', t, n);
-    else if (msg === 'Expression:') console.log(msg, res);
+    else if (msg === 'Expression:') console.log(msg, res.map(v => v.show()));
     else console.log(msg, t, n)
   }
 
@@ -82,16 +82,16 @@ var P = (() => {
 
   class SigHint extends Hint {
     constructor () {
-      super(AST.CheckableTerm)
+      super(AST.Term)
     }
-    show () { return `SigHint(${this.first().show()}, ${this.second().show()})` }
+    show () { return `SigHint: ${this.first()}, ${this.second().show()}` }
   }
 
   class DefHint extends Hint {
     constructor () {
-      super(AST.InferrableTerm)
+      super(AST.Term)
     }
-    show () { return `DefHint(${this.first().show()}, ${this.second().show()})` }
+    show () { return `DefHint: ${this.first()}, ${this.second().show()}` }
   }
 
 
@@ -178,11 +178,11 @@ var P = (() => {
           advance('Pi arrow?', '(infix)', '==>');
           return parseCTerm(0, boundvars.concat(env)).then(piBound => {
             let type = types.shift();
-            return types.reduce((a, x) => a = new AST.Pi(x, new AST.Inferred(a)), new AST.Pi(type, piBound))
+            return types.reduce((a, x) => a = new AST.Pi(x, a), new AST.Pi(type, piBound))
           })
         })
       ).catch(() => alt(() => parseITerm(1, env)
-        .then(x => alt(() => fnArrow(new AST.Inferred(x), env))
+        .then(x => alt(() => fnArrow(x, env))
           .catch(() => x))))
         .catch(() => parens(() => parseLam(env))
           .then(x => fnArrow(x, env)))
@@ -193,11 +193,11 @@ var P = (() => {
         return alt(() => {
           advance('Annotated term?', '(infix)', ':');
           return parseCTerm(0, env)
-            .then(x => new AST.Annotated(term, x))
+            .then(x => new AST.Ann(term, x))
         })
       }
       return (ifDebug ? inner => debugGroup('Try Annotated', inner) : f => f())(() => parseITerm(2, env)
-        .then(x => binding(new AST.Inferred(x))
+        .then(x => binding(x)
           .catch(() => x))
         .catch(() => parens(() => parseLam(env))
           .then(x => binding(x)
@@ -208,26 +208,26 @@ var P = (() => {
       return parseITerm(3, env)
         .then(t => (ifDebug ? inner => debugGroup('Try Apply', inner) : alt)(() => {
           let ts = [], loop;
-          debug('Application?'); // TODO: fail out if Star?
+          debug('Application?'); // TODO: fail out if Type?
           return (loop = () => parseCTerm(3, env)
             .then(cterm => {
               ts.push(cterm);
               return loop()
             })
-          )().catch(() => ts.reduce((a, x) => a = new AST.Apply(a, x), t))
+          )().catch(() => ts.reduce((a, x) => a = new AST.App(a, x), t))
         }).catch(() => t)) // Zero applications case
 
 
       case 3: // Variable term
       return alt(() => {
         advance('Star?', 'Type');
-        return new AST.Star()
+        return new AST.TypeLevel(0)
       }).catch(() => alt(() => {
         advance('Variable term?');
         if (!token.identifier || 'value' in token) throw new Error(`Mismatch at ${token.id}, token #${token_nr}`);
         let x = token,
-            i = env.findIndex(x => x.id === token.id);
-        return ~i ? new AST.Bound(i) : new AST.Free(new AST.Global(x.id))
+        i = env.findIndex(x => x.id === token.id);
+        return ~i ? new AST.BoundVar(i) : new AST.FreeVar(new AST.Global(x.id))
       })).catch(() => parens(() => parseITerm(0, env)))
     }
   }
@@ -238,13 +238,11 @@ var P = (() => {
     switch (iclause) {
       case 0:
       return ifD(() => alt(() => parseLam(env))
-        .catch(() => parseITerm(0, env)
-          .then(x => new AST.Inferred(x))))
+        .catch(() => parseITerm(0, env)))
 
       default:
       return ifD(() => alt(() => parens(() => parseLam(env)))
-        .catch(() => parseITerm(iclause, env)
-          .then(x => new AST.Inferred(x))))
+        .catch(() => parseITerm(iclause, env)))
     }
   }
 
@@ -264,7 +262,7 @@ var P = (() => {
         .then(() => {
           advance('Lambda arrow?', '(infix)', '=>');
           return parseCTerm(0, boundvars.reverse().concat(env))
-            .then(t => boundvars.reduce(a => a = new AST.Lambda(a), t))
+            .then(t => boundvars.reduce(a => a = new AST.Lam(a), t))
         })
     }))
   }
