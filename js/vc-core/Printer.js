@@ -32,7 +32,7 @@ var PP = (() => {
     if (U.testExtendedCtor(term, AST.Term) && U.testInteger(int1) && U.testInteger(int2)) {
       switch (term.constructor) {
         case AST.TypeLevel:
-        return 'Type'
+        return 'Type' + (term.level ? term.level : '')
 
         case AST.Ann:
         return parensIf(int1 > 1, print(2, int2, term.term1) + ' : ' + print(0, int2, term.term2))
@@ -59,7 +59,7 @@ var PP = (() => {
       }
     } else throw new Error('Bad arguments (print)')
   }
-  
+
   return { print }
 })();
 

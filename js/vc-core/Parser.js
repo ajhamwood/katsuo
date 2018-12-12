@@ -74,27 +74,6 @@ var P = (() => {
   }
 
 
-  class Hint extends U.ValidatedPair {
-    constructor (rhs) {
-      super(String, rhs)
-    }
-  }
-
-  class SigHint extends Hint {
-    constructor () {
-      super(AST.Term)
-    }
-    show () { return `SigHint: ${this.first()}, ${this.second().show()}` }
-  }
-
-  class DefHint extends Hint {
-    constructor () {
-      super(AST.Term)
-    }
-    show () { return `DefHint: ${this.first()}, ${this.second().show()}` }
-  }
-
-
   function parseStmt (env, result) {
     function endTest (int) {
       debug('End statement?');
@@ -115,16 +94,16 @@ var P = (() => {
       let x = token.id;
       advance('Assign operator?', '(infix)', ':=');
       return parseITerm(0, env)
-        .then(y => endTest([new P.DefHint().setValue(x, y)]))
+        .then(y => endTest([new AST.TermDef(x, y)]))
     })).catch(() => alt(() => { // Declare statement
       debug('Declare');
       return parseBindings(false, [])
-        .then(({boundvars, types}) => boundvars.reduce((a, x, i) => (a.push(new P.SigHint().setValue(x.id, types[i])), a), []).reverse())
+        .then(({boundvars, types}) => boundvars.reduce((a, x, i) => (a.push(new AST.TypeSig(x.id, types[i])), a), []).reverse())
         .then(endTest)
     })).catch(() => { // Evaluate statement
       debug('Evaluate');
       return parseITerm(0, env)
-        .then(v => endTest([new P.DefHint().setValue('it', v)]))
+        .then(v => endTest([new AST.TermDef('it', v)]))
     })
   }
 
@@ -194,14 +173,13 @@ var P = (() => {
           advance('Annotated term?', '(infix)', ':');
           return parseCTerm(0, env)
             .then(x => new AST.Ann(term, x))
-        })
+        }).catch(() => term)
       }
-      return (ifDebug ? inner => debugGroup('Try Annotated', inner) : f => f())(() => parseITerm(2, env)
-        .then(x => binding(x)
-          .catch(() => x))
-        .catch(() => parens(() => parseLam(env))
-          .then(x => binding(x)
-            .catch(() => x))))
+      return (ifDebug ? inner => debugGroup('Try Annotated', inner) : f => f())(() =>
+        parseITerm(2, env)
+          .then(binding)
+          .catch(() => parens(() => parseLam(env))
+            .then(binding)))
 
 
       case 2: // Applied term
@@ -278,10 +256,7 @@ var P = (() => {
       .catch((e) => { console.log(e); throw 'Parser error' })
   }
 
-  return {
-    Hint, SigHint, DefHint,
-    parse
-  }
+  return { parse }
 })();
 
 

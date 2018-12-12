@@ -11,9 +11,13 @@ var AST = (() => {
     constructor (level) {
       super();
       if (U.testInteger(level)) Object.assign(this, {level});
-      else throw new Error('Cannot form universe') // heh
+      else throw new Error('Cannot form term')
     }
     show () { return `Type${this.level ? this.level : ''}` }
+    equal (value) {
+      if (value.constructor === TypeLevel && this.level >= value.level) return true
+      return false
+    }
   }
 
   class Ann extends Term {
@@ -71,87 +75,16 @@ var AST = (() => {
   }
 
 /*
-
-  class InferrableTerm extends U.Eq {}
-
-  class Annotated extends InferrableTerm {
-    constructor (checkableTerm1, checkableTerm2) {
+  class Lit extends Term {
+    constructor (string) {
       super();
-      if (U.testExtendedCtor(checkableTerm1, CheckableTerm) && U.testExtendedCtor(checkableTerm2, CheckableTerm))
-        Object.assign(this, { checkableTerm1, checkableTerm2 });
-      else throw new Error('?')
+      if (U.testCtor(string, String)) Object.assign(this, {string});
+      else throw new Error('Cannot form literal')
     }
-    show () { return `Ann(${this.checkableTerm1.show()}, ${this.checkableTerm2.show()})` }
+    show () { return `Lit '${this.string}'` }
   }
-
-  class Star extends InferrableTerm {
-    show () { return 'Star' }
-  }
-
-  class Pi extends InferrableTerm {
-    constructor (checkableTerm1, checkableTerm2) {
-      super()
-      if (U.testExtendedCtor(checkableTerm1, CheckableTerm) && U.testExtendedCtor(checkableTerm2, CheckableTerm))
-        Object.assign(this, { checkableTerm1, checkableTerm2 });
-      else throw new Error('?')
-    }
-    show () { return `Pi(${this.checkableTerm1.show()}, ${this.checkableTerm2.show()})` }
-  }
-
-  class Bound extends InferrableTerm {
-    constructor (int) {
-      super();
-      if (U.testInteger(int)) Object.assign(this, { int });
-      else throw new Error('?')
-    }
-    show () { return `Bound ${this.int}` }
-  }
-
-  class Free extends InferrableTerm {
-    constructor (name) {
-      super();
-      if (U.testExtendedCtor(name, Name)) Object.assign(this, { name })
-      else throw new Error('?')
-    }
-    show () { return `Free ${this.name.show()}` }
-  }
-
-  class Apply extends InferrableTerm {
-    constructor (inferrableTerm, checkableTerm) {
-      super();
-      if (U.testExtendedCtor(inferrableTerm, InferrableTerm) && U.testExtendedCtor(checkableTerm, CheckableTerm))
-        Object.assign(this, { inferrableTerm, checkableTerm });
-      else throw new Error('?')
-    }
-    show () { return `${this.inferrableTerm.show()} :@: ${this.checkableTerm.show()}` }
-  }
-
-
-  class CheckableTerm extends U.Eq {
-    constructor () {
-      super()
-    }
-  }
-
-  class Inferred extends CheckableTerm {
-    constructor (inferrableTerm) {
-      super();
-      if (U.testExtendedCtor(inferrableTerm, InferrableTerm)) Object.assign(this, { inferrableTerm })
-      else throw new Error('?')
-    }
-    show () { return `Inf ${this.inferrableTerm.show()}` }
-  }
-
-  class Lambda extends CheckableTerm {
-    constructor (checkableTerm) {
-      super();
-      if (U.testExtendedCtor(checkableTerm, CheckableTerm)) Object.assign(this, { checkableTerm })
-      else throw new Error('?')
-    }
-    show () { return `Lam ${this.checkableTerm.show()}` }
-  }
-
 */
+
 
   class Name extends U.Eq {
     constructor () {
@@ -197,7 +130,7 @@ var AST = (() => {
     }
   }
 
-  class VType extends Value {
+  class VTypeLevel extends Value {
     constructor (level) {
       super()
       if (U.testInteger(level)) Object.assign(this, {level});
@@ -256,39 +189,69 @@ var AST = (() => {
   }
 
   class Signature extends Declaration {
-    constructor () {
+    constructor (name, type) {
       super(Type);
+      return this.setValue(name, type)
     }
   }
 
   class Definition extends Declaration {
-    constructor () {
-      super(Value)
+    constructor (name, value) {
+      super(Value);
+      return this.setValue(name, value)
     }
   }
 
-/*
   class Constructor extends Declaration {
     constructor () {
       super(null)
     }
   }
-  */
+
+
+  class Entry extends U.ValidatedPair {
+    constructor (rhs) {
+      super(String, rhs)
+    }
+  }
+
+  class TypeSig extends Entry {
+    constructor (string, term) {
+      super(Term);
+      return this.setValue(string, term)
+    }
+    show () { return `TypeSig: ${this.first()}, ${this.second().show()}` }
+  }
+
+  class TermDef extends Entry {
+    constructor (string, term) {
+      super(Term);
+      return this.setValue(string, term)
+    }
+    show () { return `TermDef: ${this.first()}, ${this.second().show()}` }
+  }
+
+  class DataCon extends Entry {
+    constructor (string, term) {
+      super(Term);
+      return this.setValue(string, term)
+    }
+    show () { return `DataCon: ${this.first()}, ${this.second().show()}` }
+  }
 
 
   return {
     Term, TypeLevel, Ann, Pi, Lam, App, BoundVar, FreeVar,
-    /*InferrableTerm, Annotated, Star, Pi, Bound, Free, Apply,
-    CheckableTerm, Inferred, Lambda,*/
     Name, Global, Local, Quote,
 
-    Value, VLambda, /*VStar,*/ VType, VPi, VNeutral,
+    Value, VLambda, VTypeLevel, VPi, VNeutral,
 
     Neutral, NFree, NApply,
 
     Type,
 
-    Declaration, Signature, Definition /*, Constructor*/
+    Declaration, Signature, Definition, Constructor,
+    Entry, TypeSig, TermDef, DataCon
   }
 })();
 

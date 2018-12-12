@@ -1,6 +1,6 @@
 var U = (function () {
-  function testCtor (obj, ctor) { return obj.constructor === ctor }
-  function testExtendedCtor (obj, ctor) { return ctor.isPrototypeOf(obj.constructor) }
+  function testCtor (obj, ctor) { return typeof obj !== 'undefined' && obj.constructor === ctor }
+  function testExtendedCtor (obj, ctor) { return typeof obj !== 'undefined' && ctor.isPrototypeOf(obj.constructor) }
   function testInteger (n) { return Number(n) === n && n % 1 === 0 }
 
   class Eq {
@@ -23,12 +23,12 @@ var U = (function () {
     }
     cons (value) {
       if (this.elemType.isPrototypeOf(value.constructor) || this.elemType === value.constructor) {
-        let ret = new this.constructor().setValue(value);
-        for (let i = 1; i <= this.length; i++) ret.setValue(this[i - 1]);
+        let ret = new this.constructor().push(value);
+        for (let i = 1; i <= this.length; i++) ret.push(this[i - 1]);
         return ret
       } else throw new Error('Bad type');
     }
-    setValue (value, i = this.length) {
+    push (value, i = this.length) {
       if (Number(i) !== i && i % 1 !== 0 && i < 0 && i > length) throw new Error('Bad index');
       if (this.elemType.isPrototypeOf(value.constructor) || this.elemType === value.constructor) {
         this[i] = value;
@@ -47,7 +47,8 @@ var U = (function () {
       if (ValidatedPair.isPrototypeOf(this.elemType)) {
         var dummy = typeof con === 'undefined' ? new this.elemType() : new con();
         if (dummy.fstType.isPrototypeOf(value.constructor)) {
-          for (let i = 0; i < this.length; i++) {
+          for (let i = this.length - 1; i >= 0; i--) {
+          //for (let i = 0; i < this.length; i++) {
             if (this[i].first().equal(value) && (typeof con === 'undefined' || con.isPrototypeOf(this[i]) || con === this[i].constructor)) {
               let result = this[i].second();
               return new U.ValidatedMaybe(dummy.sndType).just(result)
@@ -67,6 +68,7 @@ var U = (function () {
       return this
     }
     setValue (first, second) {
+      if (typeof first === 'undefined' && typeof second === 'undefined') return this;
       if ((this.fstType.isPrototypeOf(first.constructor) || first.constructor === this.fstType) &&
         (this.sndType.isPrototypeOf(second.constructor) || second.constructor === this.sndType)) this.pair = [first, second];
       else throw new Error('Bad type');
