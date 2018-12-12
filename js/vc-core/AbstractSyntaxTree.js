@@ -14,10 +14,10 @@ var AST = (() => {
       else throw new Error('Cannot form term')
     }
     show () { return `Type${this.level ? this.level : ''}` }
-    equal (value) {
+    /*equal (value) {
       if (value.constructor === TypeLevel && this.level >= value.level) return true
       return false
-    }
+    }*/
   }
 
   class Ann extends Term {

@@ -39,16 +39,16 @@ body {
   <div id='REPL'>
     <h1 id='title'>Katsuo</h1>
     <p>A dependently typed smart contract language.</p>
-    <textarea id='repl-print' spellcheck='false' readonly></textarea>
-    <input id='repl-read' type='text'>
+    <textarea id='repl-print' spellcheck='false' readonly placeholder='Results will appear here'></textarea>
+    <input id='repl-read' type='text' placeholder='Enter katsuo expressions here'>
   </div>
   <div id='about'>
-    <p>Based on "A tutorial implementation
-of a dependently typed lambda calculus" (Loeh, McBride, Swierstra), available <a href='https://www.andres-loeh.de/LambdaPi/'>here</a>. Now developing: data constructors and pattern matching.</p>
+    <p>Work in progress. <i>Now developing:</i> data constructors and pattern matching.</p>
     <h2>Syntax overview</h2>
     <p>Type annotations: <code>(Bool : Type) (true, false : Bool)</code></p>
-    <p>Assignment: <code>myTrue := true</code></p>
-    <p>Lambda functions: <code>id1 := (x => x) : Bool -> Bool</code></p>
+    <p>Value assignment: <code>myTrue := true</code></p>
+    <p>Type assignment: <code>id1 : Bool -> Bool</code></p>
+    <p>Lambda functions: <code>id1 := (x => x)</code></p>
     <p>Function application: <code>id1 myTrue</code></p>
     <p>Pi functions:</p>
     <p><code>id2 := (t, x => x) : (t : Type) ==> t -> t</code><br />

@@ -5,11 +5,10 @@ var U = (function () {
 
   class Eq {
     equal (value) {
-      if (this.constructor === value.constructor) {
-        for (let a in this) {
-          if (this[a] !== value[a] && (typeof this[a] !== 'object' || 'equal' in this[a] && !this[a].equal(value[a]))) return false
-        }
-      } else return false
+      if (this.constructor !== value.constructor) return false;
+      for (let a in this) {
+        if (this[a] !== value[a] && (typeof this[a] !== 'object' || 'equal' in this[a] && !this[a].equal(value[a]))) return false
+      }
       return true
     }
   }
@@ -22,18 +21,16 @@ var U = (function () {
       return this
     }
     cons (value) {
-      if (this.elemType.isPrototypeOf(value.constructor) || this.elemType === value.constructor) {
-        let ret = new this.constructor().push(value);
-        for (let i = 1; i <= this.length; i++) ret.push(this[i - 1]);
-        return ret
-      } else throw new Error('Bad type');
+      if (!this.elemType.isPrototypeOf(value.constructor) && this.elemType !== value.constructor) throw new Error('Bad type');
+      let ret = new this.constructor().push(value);
+      for (let i = 1; i <= this.length; i++) ret.push(this[i - 1]);
+      return ret
     }
     push (value, i = this.length) {
       if (Number(i) !== i && i % 1 !== 0 && i < 0 && i > length) throw new Error('Bad index');
-      if (this.elemType.isPrototypeOf(value.constructor) || this.elemType === value.constructor) {
-        this[i] = value;
-        if (i === this.length) this.length++
-      } else throw new Error('Bad type');
+      if (!this.elemType.isPrototypeOf(value.constructor) && this.elemType !== value.constructor) throw new Error('Bad type');
+      this[i] = value;
+      if (i === this.length) this.length++
       return this
     }
     getValue (k) { return this[k] }
@@ -43,20 +40,18 @@ var U = (function () {
       this.length += va.length;
       return this
     }
-    lookupWith (value, con) {
-      if (ValidatedPair.isPrototypeOf(this.elemType)) {
-        var dummy = typeof con === 'undefined' ? new this.elemType() : new con();
-        if (dummy.fstType.isPrototypeOf(value.constructor)) {
-          for (let i = this.length - 1; i >= 0; i--) {
-          //for (let i = 0; i < this.length; i++) {
-            if (this[i].first().equal(value) && (typeof con === 'undefined' || con.isPrototypeOf(this[i]) || con === this[i].constructor)) {
-              let result = this[i].second();
-              return new U.ValidatedMaybe(dummy.sndType).just(result)
-            }
-          }
-          return new U.ValidatedMaybe(dummy.sndType).nothing()
-        } else throw new Error('Bad type')
-      } else throw new Error('Must have element type ValidatedPair')
+    lookupWith (key, con) {
+      if (!ValidatedPair.isPrototypeOf(this.elemType)) throw new Error('Must have element type ValidatedPair');
+      if (con.constructor !== Function) throw new Error('Search must be by constructor function');
+      var dummy = typeof con === 'undefined' ? new this.elemType() : new con();
+      if (!dummy.fstType.isPrototypeOf(key.constructor)) throw new Error('Bad type');
+      for (let i = this.length - 1; i >= 0; i--) {
+        if (this[i].first().equal(key) && (typeof con === 'undefined' || con.isPrototypeOf(this[i]) || con === this[i].constructor)) {
+          let result = this[i].second();
+          return new U.ValidatedMaybe(dummy.sndType).just(result)
+        }
+      }
+      return new U.ValidatedMaybe(dummy.sndType).nothing()
     }
   }
 

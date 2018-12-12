@@ -22,9 +22,10 @@ var TC = (() => {
         name = new AST.Global(entry.first());
         maybeType = ctx.lookupWith(name, AST.Signature);
         switch (maybeType.constructor) {
-          case maybeType.Just: throw new Error(`'${entry.first()}' already typed (${PP.print(quote(maybeType.value.value))})`);
+          case maybeType.Just: throw new Error(`'${entry.first()}' already typed: ${PP.print(quote(maybeType.value.value))}`);
 
-          case maybeType.Nothing: return checkType(ctx, entry.second(), new AST.VTypeLevel(0)).then(type => { // Cumulative U not correct
+          case maybeType.Nothing: return inferType(ctx, entry.second()).then(type => {
+            if (!U.testCtor(type.value, AST.VTypeLevel)) throw new Error('Signature should have Type type');
             let value = evalTerm(ctx, entry.second());
             console.log('In context: ' + entry.first() + ' : ' + PP.print(quote(value)));
             ctx.push(new AST.Signature(name, new AST.Type(value)), true);
@@ -34,19 +35,18 @@ var TC = (() => {
           default: throw new Error('Broken lookup')
         }
 
-        case AST.TermDef:
+        case AST.TermDef: // TODO: occurs check, recursive definitions
         name = new AST.Global(entry.first());
         let maybeValue = ctx.lookupWith(name, AST.Definition);
         switch (maybeValue.constructor) {
           case maybeValue.Just:
-          if (entry.first() !== 'it') throw new Error(`'${entry.first()}' already defined (${PP.print(quote(maybeValue.value))})`)
+          if (entry.first() !== 'it') throw new Error(`'${entry.first()}' already defined: ${PP.print(quote(maybeValue.value))}`)
 
           case maybeValue.Nothing:
           maybeType = ctx.lookupWith(name, AST.Signature);
           switch (maybeType.constructor) {
             case maybeType.Just:
             if (entry.first() !== 'it') return checkType(ctx, entry.second(), maybeType.value.value).then(type => {
-              // TODO: occurs check, recursive definitions
               let value = evalTerm(ctx, entry.second())
               ctx.push(new AST.Definition(name, value), true);
               let ret = name.string + ' : ' + PP.print(quote(maybeType.value.value));
@@ -80,28 +80,28 @@ var TC = (() => {
   }
 
   function inferType (ctx, term, index = 0) { // returns AST.Type
-    // TODO: equate/whnf, separate infer and check again
     if (U.testCtor(ctx, Context) && U.testExtendedCtor(term, AST.Term) && U.testInteger(index)) return Promise.resolve().then(() => {
       switch (term.constructor) {
         case AST.TypeLevel:
         return new AST.Type(new AST.VTypeLevel(term.level + 1))
 
         case AST.Ann:
-        return checkType(ctx, term.term2, new AST.VTypeLevel(0), index)
-          .then(() => {
+        return inferType(ctx, term.term2, index)
+          .then(mbType => {
+            if (!U.testCtor(mbType.value, AST.VTypeLevel)) throw new Error('Annotation should have type Type');
             let type = evalTerm(ctx, term.term2);
             return checkType(ctx, term.term1, type, index)
               .then(() => new AST.Type(type))
           })
 
         case AST.Pi:
-        return checkType(ctx, term.term1, new AST.VTypeLevel(0), index)
-          .then(() => {
+        return inferType(ctx, term.term1, index)
+          .then(typeLevel1 => {
             let type = evalTerm(ctx, term.term1);
-            return checkType(
+            return inferType(
               ctx.cons(new AST.Signature(new AST.Local(index), new AST.Type(type)), true),
-              substTerm(new AST.FreeVar(new AST.Local(index)), term.term2, 0), new AST.VTypeLevel(0), index + 1)
-              .then(() => new AST.Type(new AST.VTypeLevel(0)))
+              substTerm(new AST.FreeVar(new AST.Local(index)), term.term2, 0), index + 1)
+              .then(typeLevel2 => new AST.Type(new AST.VTypeLevel(Math.max(typeLevel1.value.level, typeLevel2.value.level))))
           })
 
         case AST.App:
@@ -132,6 +132,7 @@ var TC = (() => {
   }
 
   function checkType (ctx, term, type, index = 0) { // returns AST.Type
+    // TODO: whnf
     if (U.testCtor(ctx, Context) && U.testExtendedCtor(term, AST.Term) &&
       U.testExtendedCtor(type, AST.Value) && U.testInteger(index)) return Promise.resolve().then(() => {
       switch (term.constructor) {
@@ -143,8 +144,9 @@ var TC = (() => {
         } else throw new Error(`Lambda has Pi type, not ${type.constructor.name}`)
 
         default: return inferType(ctx, term, index).then(res => {
+          if (U.testCtor(res.value, AST.VTypeLevel) && U.testCtor(type, AST.VTypeLevel)) type.level = res.value.level;
           if (!quote(res.value).equal(quote(type))) throw new Error('Type mismatch')
-          else return new AST.Type(type)
+          else return new AST.Type(res.value)
         });
       }
     });
@@ -222,7 +224,7 @@ var TC = (() => {
         break;
 
         case AST.App:
-        term = new AST.Apply(substTerm(term1, term2.term1, index), substTerm(term1, term2.term2, index));
+        term = new AST.App(substTerm(term1, term2.term1, index), substTerm(term1, term2.term2, index));
         break;
 
         case AST.BoundVar:
@@ -308,7 +310,7 @@ var TC = (() => {
         break;
 
         case AST.NApply:
-        term = new AST.Apply(neutralQuote(neutral.neutral, index), quote(neutral.value, index));
+        term = new AST.App(neutralQuote(neutral.neutral, index), quote(neutral.value, index));
         break;
 
         default: throw new Error('Bad neutral argument (neutralQuote)')
