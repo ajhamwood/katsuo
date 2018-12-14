@@ -160,11 +160,12 @@ var P = (() => {
             return types.reduce((a, x) => a = new AST.Pi(x, a), new AST.Pi(type, piBound))
           })
         })
-      ).catch(() => alt(() => parseITerm(1, env)
-        .then(x => alt(() => fnArrow(x, env))
-          .catch(() => x))))
-        .catch(() => parens(() => parseLam(env))
-          .then(x => fnArrow(x, env)))
+      ) .catch(() => alt(() => parseLam(env)))
+        .catch(() => alt(() => parseITerm(1, env)
+          .then(x => alt(() => fnArrow(x, env))
+            .catch(() => x))))
+          /*.catch(() => parens(() => parseLam(env))
+            .then(x => fnArrow(x, env)))*/
 
 
       case 1: // Annotated term
@@ -212,7 +213,7 @@ var P = (() => {
 
 
   function parseCTerm (iclause, env) {
-    let ifD = ifDebug ? inner => debugGroup('Try CTerm', inner) : f => f()
+    let ifD = ifDebug ? inner => debugGroup('Try CTerm', inner) : f => f();
     switch (iclause) {
       case 0:
       return ifD(() => alt(() => parseLam(env))

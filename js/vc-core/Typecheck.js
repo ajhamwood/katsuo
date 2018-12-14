@@ -52,8 +52,8 @@ var TC = (() => {
               let ret = name.string + ' : ' + PP.print(quote(maybeType.value.value));
               console.log('In context: ' + ret);
               return [ret]
-            }).catch(e => { console.log(e); throw new Error(e.message +
-              `\nwhen checking term ${entry.second().show()}\nagainst type ${quote(maybeType.value).show()}`) })
+            }).catch(e => { throw new Error(e.message +
+              `\nwhen checking term ${PP.print(entry.second())}\n      against type ${PP.print(quote(maybeType.value.value))}`) })
 
             case maybeType.Nothing: return inferType(ctx, entry.second()).then(type => {
               let value = evalTerm(ctx, entry.second())
@@ -97,11 +97,18 @@ var TC = (() => {
         case AST.Pi:
         return inferType(ctx, term.term1, index)
           .then(typeLevel1 => {
-            let type = evalTerm(ctx, term.term1);
-            return inferType(
-              ctx.cons(new AST.Signature(new AST.Local(index), new AST.Type(type)), true),
-              substTerm(new AST.FreeVar(new AST.Local(index)), term.term2, 0), index + 1)
-              .then(typeLevel2 => new AST.Type(new AST.VTypeLevel(Math.max(typeLevel1.value.level, typeLevel2.value.level))))
+            if (U.testCtor(typeLevel1.value, AST.VTypeLevel)) {
+              let type = evalTerm(ctx, term.term1);
+              return inferType(
+                ctx.cons(new AST.Signature(new AST.Local(index), new AST.Type(type)), true),
+                substTerm(new AST.FreeVar(new AST.Local(index)), term.term2), index + 1)
+                .then(typeLevel2 => {
+                  if (U.testCtor(typeLevel2.value, AST.VTypeLevel))
+                    return new AST.Type(new AST.VTypeLevel(Math.max(typeLevel1.value.level, typeLevel2.value.level)));
+                  else throw new Error('Pi range must have type Type')
+                })
+            }
+            else throw new Error('Pi domain must have type Type')
           })
 
         case AST.App:
@@ -122,6 +129,7 @@ var TC = (() => {
           default: throw new Error('Broken lookup')
         }
 
+        case AST.Lam: throw new Error('Lambda type can\'t be inferred');
         default: throw new Error('Bad term argument (inferType)')
       }
     }).then(res => {
@@ -140,7 +148,7 @@ var TC = (() => {
         if (U.testCtor(type, AST.VPi)) {
           return checkType(
             ctx.cons(new AST.Signature(new AST.Local(index), new AST.Type(type.value)), true),
-            substTerm(new AST.FreeVar(new AST.Local(index)), term.term, 0), type.func(vfree(new AST.Local(index))), index + 1)
+            substTerm(new AST.FreeVar(new AST.Local(index)), term.term), type.func(vfree(new AST.Local(index))), index + 1)
         } else throw new Error(`Lambda has Pi type, not ${type.constructor.name}`)
 
         default: return inferType(ctx, term, index).then(res => {
@@ -203,7 +211,7 @@ var TC = (() => {
     } else throw new Error('Bad arguments (evalTerm)')
   }
 
-  function substTerm (term1, term2, index) { // returns AST.Term
+  function substTerm (term1, term2, index = 0) { // returns AST.Term
     if (U.testExtendedCtor(term1, AST.Term) && U.testExtendedCtor(term2, AST.Term) && U.testInteger(index)) {
       let term;
       switch (term2.constructor) {

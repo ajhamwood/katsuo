@@ -65,8 +65,6 @@ body {
   <script src='js/vc-core/Parser.js'></script>
   <script src='js/vc-core/Typecheck.js'></script>
   <script src='js/vc-core/Interpreter.js'></script>
-
-  <!--script src='js/test/test1.js'></script-->
   <script>
 
 // Page state
@@ -82,7 +80,8 @@ let app = new $.Machine(Object.seal({
       prompt = source ? '> ' : '';
   this.curIndex = this.lines.length;
   this.curLine = '';
-  $('#repl-print')[0].value += (len === 1 ? '' : '\n') + prompt + line
+  $('#repl-print')[0].value += (len === 1 ? '' : '\n') + prompt + line;
+  $('textarea')[0].scrollTop = $('textarea')[0].scrollHeight
 })
 
 .on('eval', function (line) {
@@ -107,7 +106,10 @@ let app = new $.Machine(Object.seal({
 $.addEvents({
 
   '': {
-    load () { $('#repl-print')[0].value = '' }
+    load () {
+      $('#repl-print')[0].value = '';
+      $('#repl-read')[0].focus()
+    }
   },
 
   '#repl-read': {
